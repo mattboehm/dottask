@@ -17,11 +17,11 @@
               ;:figwheel {:on-jsload "dottask.core/render!"}
               :compiler {
                          :main "dottask.core"
-                         :output-to "static/dottask.js"
-                         :output-dir "static"
-                         :optimizations "advanced"
+                         :output-to "out/main.js"
+                         :output-dir "out"
+                         :optimizations :advanced
                          :pretty-print false
-                         :source-map "static/dottask.js.map"}
+                         :source-map "out/main.js.map"}
             }]
   }
   :figwheel {
