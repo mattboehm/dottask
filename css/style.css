@@ -1,0 +1,57 @@
+.dotgraph {
+	position: absolute;
+}
+.task-text {
+	width: 100%;
+	min-height: 20px;
+	background-color: white;
+}
+body {
+	background-color: #bbc;
+	background-image: url("http://subtlepatterns2015.subtlepatterns.netdna-cdn.com/patterns/textured_paper.png");
+	background-repeat: repeat;
+}
+.graph-overlay {
+	position: absolute;
+	top: 0px;
+	left: 0px;
+}
+#graph0>polygon{
+	opacity: 0;
+}
+.node-overlay button.delete{
+	position: absolute;
+	right: 0px;
+}
+/*.node-overlay button.add-after{*/
+	/*position: absolute;*/
+	/*left: 0px;*/
+	/*bottom: 0px;*/
+/*}*/
+.node-overlay {
+	position: absolute;
+	width: 144px;
+	height: 72px;
+	background-color: #FDFDFD;
+	box-shadow: 0 0 5px;
+	transition: 0.6s ease-in-out;
+}
+.node-overlay.selected {
+	box-shadow: 0 0 10px blue;
+}
+.node-overlay.done {
+	background-color: #BFB;
+}
+.node-overlay.blocked {
+	background-color: #FBB;
+}
+.node-overlay.progress {
+	background-color: #FFB;
+}
+
+.status-picker {
+	width: 20px;
+}
+.node polygon {
+	stroke: #ccc
+}
