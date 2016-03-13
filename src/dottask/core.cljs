@@ -33,6 +33,24 @@
        )
      )
    )
+  (defn show-help []
+    (js/alert (str 
+      "Buttons:\n"                                      
+      "\t+: add new card before/after current card\n"
+      "\t-->: link/unlink cards (click first on source, then on target)\n"
+      "\tx: delete card\n"
+      "\tclick on label: change text\n"
+      "Keyboard Shortcuts:\n"
+      "\tj/k: go to previous/next node\n"
+      "\td: delete selected card\n"
+      "\te: edit text of selected card\n"
+      "\t</>: add card before/after\n"
+      "\t-: link/unlink cards (first on source, then target)\n"
+      "Saving: clicking save adds all the page state to the url hash. "
+      "This can be bookmarked so that you can reload the page later "
+      "and pick up where you left off."
+    ))
+   )
 ;; State
   (defonce app-state (reagent/atom {
     :id-counter 6
@@ -309,8 +327,9 @@
           ]
       [:div
         {:on-key-press #(.log js/console %)}
-        [:button {:on-click #((rerender! add-node) [] [])} "+"]
+        [:button {:on-click #((rerender! add-node) [] [])} "Add card"]
         [:button {:on-click #(save-hash @app-state)} "Save"]
+        [:button {:on-click #(show-help)} "Help"]
         [:div {:class "dotgraph"}
           [:div {:class "graph-overlay"} 
             (map
