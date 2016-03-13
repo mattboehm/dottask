@@ -3,6 +3,7 @@
             [clojure.string :as string]
             [clojure.set :as cset]
             [cljs.reader :as reader]
+            [devtools.core :as devtools]
             [tubax.core :as tbx]))
 
 ;; Utils
@@ -407,8 +408,10 @@
 
   ;the first time the page loads, load the app state from the url hash
   (defonce on-page-load (do 
-                       (swap! app-state load-hash)
-                       ))
+    (devtools/enable-feature! :sanity-hints)
+    (devtools/install!)
+    (swap! app-state load-hash)
+   ))
 
   ;whenever the app state changes, render the whole page
   (add-watch app-state :on-change (fn [_ _ _ _] (render!)))
