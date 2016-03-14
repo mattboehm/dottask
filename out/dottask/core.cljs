@@ -3,6 +3,7 @@
             [clojure.string :as string]
             [clojure.set :as cset]
             [cljs.reader :as reader]
+            [devtools.core :as devtools]
             [tubax.core :as tbx]))
 
 ;; Utils
@@ -31,6 +32,24 @@
         new_coll
        )
      )
+   )
+  (defn show-help []
+    (js/alert (str 
+      "Buttons:\n"                                      
+      "\t+: add new card before/after current card\n"
+      "\t-->: link/unlink cards (click first on source, then on target)\n"
+      "\tx: delete card\n"
+      "\tclick on label: change text\n"
+      "Keyboard Shortcuts:\n"
+      "\tj/k: go to previous/next node\n"
+      "\td: delete selected card\n"
+      "\te: edit text of selected card\n"
+      "\t</>: add card before/after\n"
+      "\t-: link/unlink cards (first on source, then target)\n"
+      "Saving: clicking save adds all the page state to the url hash. "
+      "This can be bookmarked so that you can reload the page later "
+      "and pick up where you left off."
+    ))
    )
 ;; State
   (defonce app-state (reagent/atom {
@@ -308,8 +327,9 @@
           ]
       [:div
         {:on-key-press #(.log js/console %)}
-        [:button {:on-click #((rerender! add-node) [] [])} "+"]
+        [:button {:on-click #((rerender! add-node) [] [])} "Add card"]
         [:button {:on-click #(save-hash @app-state)} "Save"]
+        [:button {:on-click #(show-help)} "Help"]
         [:div {:class "dotgraph"}
           [:div {:class "graph-overlay"} 
             (map
@@ -323,25 +343,27 @@
                        }}
                   [:button
                     { :class "add-before"
+                      :title "Add Before"
                       :on-click #((rerender! add-node) [] [(:id node)])
                      }
                     "+"
                    ]
                   [:button
                     { :class "delete"
+                      :title "Delete"
                       :on-click #((rerender! delete-node) (:id node))
                      }
                     "x"
                    ]
                   [:button
-                    {
-                      ;:class "add-after"
+                    { :title "Add/Remove Link"
                       :on-click #((rerender! on-toggle-dep-click) (:id node))
                      }
                     (get-toggle-link-button-text state (:id node))
                    ]
                   [:button
                     { :class "add-after"
+                      :title "Add After"
                       :on-click #((rerender! add-node) [(:id node)] [])
                      }
                     "+"
@@ -357,6 +379,7 @@
                    ]
                   [:div
                     { :class "task-text"
+                      :title "Click to Change"
                       :on-click #((rerender! rename-prompt) (:id node))}
                     (get-in node [:node :text])
                    ]
@@ -407,8 +430,10 @@
 
   ;the first time the page loads, load the app state from the url hash
   (defonce on-page-load (do 
-                       (swap! app-state load-hash)
-                       ))
+    (devtools/enable-feature! :sanity-hints)
+    (devtools/install!)
+    (swap! app-state load-hash)
+   ))
 
   ;whenever the app state changes, render the whole page
   (add-watch app-state :on-change (fn [_ _ _ _] (render!)))
