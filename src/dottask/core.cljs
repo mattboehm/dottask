@@ -343,25 +343,27 @@
                        }}
                   [:button
                     { :class "add-before"
+                      :title "Add Before"
                       :on-click #((rerender! add-node) [] [(:id node)])
                      }
                     "+"
                    ]
                   [:button
                     { :class "delete"
+                      :title "Delete"
                       :on-click #((rerender! delete-node) (:id node))
                      }
                     "x"
                    ]
                   [:button
-                    {
-                      ;:class "add-after"
+                    { :title "Add/Remove Link"
                       :on-click #((rerender! on-toggle-dep-click) (:id node))
                      }
                     (get-toggle-link-button-text state (:id node))
                    ]
                   [:button
                     { :class "add-after"
+                      :title "Add After"
                       :on-click #((rerender! add-node) [(:id node)] [])
                      }
                     "+"
@@ -377,6 +379,7 @@
                    ]
                   [:div
                     { :class "task-text"
+                      :title "Click to Change"
                       :on-click #((rerender! rename-prompt) (:id node))}
                     (get-in node [:node :text])
                    ]
