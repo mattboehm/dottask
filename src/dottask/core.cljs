@@ -37,6 +37,7 @@
     (js/alert (str 
       "Buttons:\n"                                      
       "\t+: add new card before/after current card\n"
+      "\t   hold down shift to 'split' the card into 2\n"
       "\t-->: link/unlink cards (click first on source, then on target)\n"
       "\tx: delete card\n"
       "\tclick on label: change text\n"
@@ -296,6 +297,37 @@
        )
      )
    )
+  (defn move-deps
+    ( [deps old-node-id new-node-id dep-type]
+      (move-deps deps old-node-id new-node-id
+                 (or (= dep-type :before) (= dep-type :both))
+                 (or (= dep-type :after) (= dep-type :both))
+                 )
+     )
+    ( [deps old-node-id new-node-id move-befores move-afters]
+      (map (fn [dep]
+                  (cond
+                    (and move-befores (= (second dep) old-node-id))
+                      [(first dep) new-node-id]
+                    (and move-afters (= (first dep) old-node-id))
+                      [new-node-id (second dep)]
+                    :else
+                      dep
+                    )
+                  )
+           deps)
+      ))
+  ;new-node-pos is :before or :after
+  (defn split-node [state node-id new-node-pos]
+    (let [
+          new-node-id (str "node" (:id-counter state))
+          new_node {:id new-node-id :text ""}
+          new_nodes (conj (:nodes state) new_node)
+          new_deps (move-deps (:deps state) node-id new-node-id new-node-pos)
+          final_deps (conj new_deps (if (= new-node-pos :before) [new-node-id node-id] [node-id new-node-id]))
+          ]
+        (assoc state :nodes new_nodes :deps final_deps :id-counter (inc (:id-counter state)))
+      ))
   (defn toggle-dep [state dep]
     (update-in state [:deps] #(vec (toggle-item % dep)))
    )
@@ -344,7 +376,9 @@
                   [:button
                     { :class "add-before"
                       :title "Add Before"
-                      :on-click #((rerender! add-node) [] [(:id node)])
+                      :on-click #(if (.-shiftKey %)
+                                   ((rerender! split-node) (:id node) :before)
+                                   ((rerender! add-node) [] [(:id node)]))
                      }
                     "+"
                    ]
@@ -364,7 +398,9 @@
                   [:button
                     { :class "add-after"
                       :title "Add After"
-                      :on-click #((rerender! add-node) [(:id node)] [])
+                      :on-click #(if (.-shiftKey %)
+                                   ((rerender! split-node) (:id node) :after)
+                                   ((rerender! add-node) [(:id node)] []))
                      }
                     "+"
                    ]
