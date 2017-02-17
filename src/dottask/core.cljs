@@ -4,7 +4,11 @@
             [clojure.set :as cset]
             [cljs.reader :as reader]
             [devtools.core :as devtools]
-            [tubax.core :as tbx]))
+            [goog.dom :as dom]
+            [goog.events :as events]
+            [tubax.core :as tbx])
+  (:import [goog.events EventType])
+ )
 
 ;; Utils
   (defn debug [result]
@@ -328,20 +332,49 @@
           ]
         (assoc state :nodes new_nodes :deps final_deps :id-counter (inc (:id-counter state)))
       ))
+  (defn add-or-split-node [state node-id position split?]
+    (if split?
+      (split-node state node-id position)
+      (if (= position :before)
+        (add-node state [] [node-id])
+        (add-node state [node-id] [])
+       )
+     )
+   )
   (defn toggle-dep [state dep]
     (update-in state [:deps] #(vec (toggle-item % dep)))
    )
+  (defn toggle-dep-clear [state dep]
+    (assoc (toggle-dep state dep) :toggle-link-node-id nil)
+    )
   (defn on-toggle-dep-click [state node-id]
     (let [last-clicked-id (:toggle-link-node-id state)]
       (if (nil? last-clicked-id)
         (assoc state :toggle-link-node-id node-id)
         (if (= last-clicked-id node-id)
           (assoc state :toggle-link-node-id nil)
-          (assoc (toggle-dep state [last-clicked-id node-id]) :toggle-link-node-id nil)
+          (toggle-dep-clear state [last-clicked-id node-id])
          )
         )
      )
    )
+  (defn link-mouseup [src-node-id src-y shift-key]
+    (fn [e]
+      (let [node (dom/getAncestorByClass (.-target e) "node-overlay")
+            node-id (when node (.getAttribute node "data-nodeid"))
+            ]
+          (if node-id
+            ; If on a different node, link to it
+            (when (not= node-id src-node-id) ((rerender! toggle-dep-clear) [src-node-id node-id]))
+            ; If not on a node, add a new node before/after based on deltaY
+            ((rerender! add-or-split-node) src-node-id (if (< (.-clientY e) src-y) :before :after) shift-key)
+           )
+        )
+      )
+    )
+  (defn link-mousedown [e]
+    (events/listenOnce js/window EventType.MOUSEUP (link-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (.-clientY e) (.-shiftKey e)))
+    )
 ;; Dom rendering
   (defn get-toggle-link-button-text [state node-id]
     (let [last-clicked-id (:toggle-link-node-id state)]
@@ -369,6 +402,8 @@
                 [:div {:class (str "node-overlay " (subs (str (get-in node [:node :status])) 1) (when (= (:id node) (:selected-node-id state)) " selected")) 
                        :key (:id node)
                        :on-click #((rerender! select-node) (:id node))
+                       :data-nodeid (:id node)
+                       :on-mouse-down link-mousedown
                        :style {
                          :left (str (+ (js/parseInt x-offset) (get-in node [:points :x :min])) "px")
                          :top (str (+ (js/parseInt y-offset) (get-in node [:points :y :min])) "px")
@@ -376,9 +411,7 @@
                   [:button
                     { :class "add-before"
                       :title "Add Before"
-                      :on-click #(if (.-shiftKey %)
-                                   ((rerender! split-node) (:id node) :before)
-                                   ((rerender! add-node) [] [(:id node)]))
+                      :on-click (fn [evt] ((rerender! add-or-split-node) (:id node) :before (.-shiftKey evt)))
                      }
                     "+"
                    ]
