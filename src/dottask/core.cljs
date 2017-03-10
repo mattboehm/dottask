@@ -4,8 +4,14 @@
             [clojure.set :as cset]
             [cljs.reader :as reader]
             [devtools.core :as devtools]
-            [tubax.core :as tbx]))
-
+            [goog.dom :as dom]
+            [goog.dom.classlist :as classlist]
+            [goog.events :as events]
+            [tubax.core :as tbx])
+  (:import [goog.events EventType])
+ )
+;; Constants
+  (def ppi 72); pixels per inch
 ;; Utils
   (defn debug [result]
     (.log js/console "DEBUG" result)
@@ -51,6 +57,12 @@
       "This can be bookmarked so that you can reload the page later "
       "and pick up where you left off."
     ))
+   )
+  (defn get-node-dim [node dim]
+    (case dim
+      :width (or (:moving-width node) (:width node) 2)
+      :height (or (:moving-height node) (:height node) 1.2)
+      )
    )
 ;; State
   (defonce app-state (reagent/atom {
@@ -124,11 +136,12 @@
   (defn to-dot [nodes deps tags]
     (str
      "digraph G {\n"
-     "node [label=\"\" shape=\"rect\" height=\"1\" width=\"2\"]\n"
+     "dpi=72;"
+     "node [label=\"\" shape=\"rect\"]\n"
       (when (seq tags) (render-tag-tree (treeify tags)))
       (->>
         (concat
-          (map #(str (:id %) ";") nodes)
+          (map #(str (:id %) "[height=\"" (get-node-dim % :height) "\" width=\"" (get-node-dim % :width) "\"];") nodes)
           (map #(str (first %) "->" (second %) ";") deps)
         )
         (interpose "\n")
@@ -137,7 +150,6 @@
       "}"
     )
   )
-
 
   ;get the bounding box for points
   (defn parse-points [pointstr]
@@ -228,6 +240,15 @@
   (defn rename-node [state node-id text]
       (update-node state node-id #(assoc % :text text))
     )
+  (defn resize-node [state node-id width height evt-type]
+    (let [ height-pt (/ height ppi)
+           width-pt (/ width ppi)
+           w (evt-type {:mousemove :moving-width :mouseup :width})
+           h (evt-type {:mousemove :moving-height :mouseup :height})
+          ]
+      (update-node state node-id #(assoc (dissoc % :moving-width :moving-height) w width-pt h height-pt))
+     )
+   )
   ; prompt a user for a new name and if they provide one, rename the node to that.
   (defn rename-prompt [state node-id]
     (let [node (get-node (:nodes state) node-id)
@@ -328,18 +349,79 @@
           ]
         (assoc state :nodes new_nodes :deps final_deps :id-counter (inc (:id-counter state)))
       ))
+  (defn add-or-split-node [state node-id position split?]
+    (if split?
+      (split-node state node-id position)
+      (if (= position :before)
+        (add-node state [] [node-id])
+        (add-node state [node-id] [])
+       )
+     )
+   )
   (defn toggle-dep [state dep]
     (update-in state [:deps] #(vec (toggle-item % dep)))
    )
+  (defn toggle-dep-clear [state dep]
+    (assoc (toggle-dep state dep) :toggle-link-node-id nil)
+    )
   (defn on-toggle-dep-click [state node-id]
     (let [last-clicked-id (:toggle-link-node-id state)]
       (if (nil? last-clicked-id)
         (assoc state :toggle-link-node-id node-id)
         (if (= last-clicked-id node-id)
           (assoc state :toggle-link-node-id nil)
-          (assoc (toggle-dep state [last-clicked-id node-id]) :toggle-link-node-id nil)
+          (toggle-dep-clear state [last-clicked-id node-id])
          )
         )
+     )
+   )
+  (defn el->nodeid [el]
+    (let [node (dom/getAncestorByClass el "node-overlay")
+          node-id (when node (.getAttribute node "data-nodeid"))
+          ]
+      node-id
+     )
+   )
+  (defn link-mouseup [src-node-id src-y shift-key]
+    (fn [e]
+      (let [ node-id (el->nodeid (.-target e))
+            ]
+        (if node-id
+          ; If on a different node, link to it
+          (when (not= node-id src-node-id) ((rerender! toggle-dep-clear) [src-node-id node-id]))
+          ; If not on a node, add a new node before/after based on deltaY
+          ((rerender! add-or-split-node) src-node-id (if (< (.-clientY e) src-y) :before :after) shift-key)
+         )
+       )
+     )
+   )
+  (defn resize-mouse [target evt-type move-key]
+    (fn [e]
+      (let [ node( dom/getAncestorByClass target "node-overlay")
+             container (dom/getAncestorByClass target "dotgraph")
+             bounds (.getBoundingClientRect node)
+             ctop (.-top (.getBoundingClientRect container))
+             width (- (.-clientX e) (.-left bounds))
+             height (- (.-clientY e) (.-top bounds))
+             node-id (el->nodeid target)
+            ]
+        (when (and (> width 30) (> height 30))
+          ((rerender! resize-node) node-id width height evt-type)
+         )
+        (when move-key
+          (events/unlistenByKey move-key)
+         )
+       )
+     )
+   )
+  (defn node-mousedown [e]
+    (if (classlist/contains (.-target e) "node-resize")
+      (do 
+        (let [move-key (events/listen js/window EventType.MOUSEMOVE (resize-mouse (.-target e) :mousemove nil))]
+          (events/listenOnce js/window EventType.MOUSEUP (resize-mouse (.-target e) :mouseup move-key))
+         )
+       )
+      (events/listenOnce js/window EventType.MOUSEUP (link-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (.-clientY e) (.-shiftKey e)))
      )
    )
 ;; Dom rendering
@@ -362,32 +444,38 @@
         [:button {:on-click #((rerender! add-node) [] [])} "Add card"]
         [:button {:on-click #(save-hash @app-state)} "Save"]
         [:button {:on-click #(show-help)} "Help"]
-        [:div {:class "dotgraph"}
+        [:div {:class "dotgraph"
+               ;TODO make not add node when dragging
+               ;:on-click #(when (and (.-target %) (not (dom/getAncestorByClass (.-target %) "node-overlay"))) (.log js/console "clk" (.-target %))((rerender! add-node) [] []))
+               }
           [:div {:class "graph-overlay"} 
             (map
               (fn [node]
                 [:div {:class (str "node-overlay " (subs (str (get-in node [:node :status])) 1) (when (= (:id node) (:selected-node-id state)) " selected")) 
                        :key (:id node)
                        :on-click #((rerender! select-node) (:id node))
+                       :data-nodeid (:id node)
+                       :on-mouse-down node-mousedown
                        :style {
                          :left (str (+ (js/parseInt x-offset) (get-in node [:points :x :min])) "px")
                          :top (str (+ (js/parseInt y-offset) (get-in node [:points :y :min])) "px")
+                         :width (str (* (get-node-dim (:node node) :width) ppi) "px")
+                         :height (str (* (get-node-dim (:node node) :height) ppi) "px")
+
                        }}
                   [:button
                     { :class "add-before"
                       :title "Add Before"
-                      :on-click #(if (.-shiftKey %)
-                                   ((rerender! split-node) (:id node) :before)
-                                   ((rerender! add-node) [] [(:id node)]))
+                      :on-click (fn [evt] ((rerender! add-or-split-node) (:id node) :before (.-shiftKey evt)))
                      }
                     "+"
                    ]
-                  [:button
+                  [:span
                     { :class "delete"
                       :title "Delete"
                       :on-click #((rerender! delete-node) (:id node))
                      }
-                    "x"
+                    "×"
                    ]
                   [:button
                     { :title "Add/Remove Link"
@@ -418,6 +506,23 @@
                       :title "Click to Change"
                       :on-click #((rerender! rename-prompt) (:id node))}
                     (get-in node [:node :text])
+                   ]
+                  [:span
+                   { :style {
+                             :position "absolute"
+                             :right "0"
+                             :bottom "0"
+                             :width "12px"
+                             :height "12px"
+                             ;:background-color "#EEE"
+                             :cursor "nwse-resize"
+                             ;:box-shadow "-1px -1px 5px #333, inset -10px -10px 8px -10px #FFF"
+                             :border-bottom "double #888"
+                             :border-right "double #888"
+                             }
+                     :class "draggable node-resize"
+                    }
+                    ""
                    ]
                  ]
                )
