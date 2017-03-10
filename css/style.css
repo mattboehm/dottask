@@ -1,9 +1,14 @@
 .dotgraph {
 	position: absolute;
+	min-width: 100%;
+	min-height: calc(100% - 63px);
 }
 .task-text {
-	width: 100%;
-	min-height: 20px;
+	margin-top: 8px;
+	margin-left: 8px;
+	padding: 5px;
+	width: calc(100% - 26px);
+	height: calc( 100% - 30px);
 	background-color: white;
 }
 body {
@@ -19,23 +24,53 @@ body {
 #graph0>polygon{
 	opacity: 0;
 }
-.node-overlay button.delete{
+.node-overlay span.delete{
 	position: absolute;
 	right: 0px;
+	color: #888;
+	cursor: pointer;
+	/*background-color: red;*/
+	width: 16px;
+	text-align: center;
+	opacity: 0;
+	transition: opacity 0.2s;
 }
-/*.node-overlay button.add-after{*/
-	/*position: absolute;*/
-	/*left: 0px;*/
-	/*bottom: 0px;*/
-/*}*/
+.node-overlay:hover span.delete{
+	opacity: 1;
+
+}
+.node-overlay button, .node-overlay select {
+	display: none;
+	opacity: 0.1;
+	transition: opacity 0.2s;
+}
+.node-overlay:hover button, .node-overlay:hover select {
+	opacity: 0.8;
+}
+.node-overlay .node-resize {
+	position: absolute
+	right: 0;
+	bottom: 0;
+	width: 12px;
+	height: 12px;
+	cursor: nwse-resize;
+	border-bottom: double #888;
+	border-right: double #888;
+	opacity: 0;
+	transition: opacity 0.2s;
+}
+.node-overlay:hover .node-resize {
+	opacity: 0.8;
+}
 .node-overlay {
 	position: absolute;
 	width: 144px;
 	height: 72px;
 	background-color: #FDFDFD;
 	box-shadow: 0 0 5px;
-	transition: 0.6s ease-in-out;
+	/*transition: 0.6s ease-in-out;*/
 	user-select: none;
+	padding-top: 0px;
 }
 .node-overlay.selected {
 	box-shadow: 0 0 10px blue;
