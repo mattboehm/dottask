@@ -38,5 +38,5 @@ goog.addDependency("../devtools/util.js", ['devtools.util'], ['cljs.core', 'devt
 goog.addDependency("../devtools/format.js", ['devtools.format'], ['cljs.core', 'devtools.prefs']);
 goog.addDependency("../devtools/custom_formatters.js", ['devtools.custom_formatters'], ['cljs.core', 'goog.labs.userAgent.browser', 'devtools.format', 'devtools.prefs']);
 goog.addDependency("../devtools/core.js", ['devtools.core'], ['devtools.dirac', 'devtools.sanity_hints', 'devtools.util', 'cljs.core', 'goog.userAgent', 'devtools.custom_formatters', 'devtools.prefs']);
-goog.addDependency("../dottask/core.js", ['dottask.core'], ['tubax.core', 'reagent.core', 'cljs.core', 'clojure.set', 'devtools.core', 'clojure.string', 'cljs.reader']);
+goog.addDependency("../dottask/core.js", ['dottask.core'], ['goog.dom', 'goog.dom.classlist', 'tubax.core', 'reagent.core', 'cljs.core', 'clojure.set', 'goog.events.EventType', 'devtools.core', 'clojure.string', 'cljs.reader', 'goog.events']);
 goog.addDependency("../figwheel/connect.js", ['figwheel.connect'], ['cljs.core', 'figwheel.client', 'figwheel.client.utils', 'dottask.core']);
