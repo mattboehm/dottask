@@ -41,12 +41,15 @@
    )
   (defn show-help []
     (js/alert (str 
-      "Buttons:\n"                                      
-      "\t+: add new card before/after current card\n"
+      "Mouse:\n"                                      
+      "\tclick on card text: change text\n"
+      "\tdrag from one card to another: link/unlink cards\n"
+      "\tdrag from one card to empty space above/below:"
+      "\t   create card linked to/from start card\n"
       "\t   hold down shift to 'split' the card into 2\n"
-      "\t-->: link/unlink cards (click first on source, then on target)\n"
+      "Buttons:\n"
       "\tx: delete card\n"
-      "\tclick on label: change text\n"
+      "\thandle at bottom right: resize card\n"
       "Keyboard Shortcuts:\n"
       "\tj/k: go to previous/next node\n"
       "\td: delete selected card\n"
