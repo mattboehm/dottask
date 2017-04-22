@@ -7,7 +7,6 @@
             [goog.dom :as dom]
             [goog.dom.classlist :as classlist]
             [goog.events :as events]
-            [reagent-modals.modals :as modals]
             [tubax.core :as tbx])
   (:import [goog.events EventType])
  )
@@ -446,7 +445,6 @@
           ]
       [:div
         {:on-key-press #(.log js/console %)}
-        [modals/modal-window]
         [:button {:on-click #((rerender! add-node) [] [])} "Add card"]
         [:button {:on-click #(save-hash @app-state)} "Save"]
         [:button {:on-click #(show-help)} "Help"]
