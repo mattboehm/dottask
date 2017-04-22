@@ -7,9 +7,11 @@
             [goog.dom :as dom]
             [goog.dom.classlist :as classlist]
             [goog.events :as events]
+            [reagent-modals.modals :as modals]
             [tubax.core :as tbx])
   (:import [goog.events EventType])
  )
+  (.initializeTouchEvents js/React true)
 ;; Constants
   (def ppi 72); pixels per inch
 ;; Utils
@@ -387,7 +389,7 @@
    )
   (defn link-mouseup [src-node-id src-y shift-key]
     (fn [e]
-      (let [ node-id (el->nodeid (.-target e))
+      (let [ node-id (el->nodeid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
             ]
         (if node-id
           ; If on a different node, link to it
@@ -424,7 +426,7 @@
           (events/listenOnce js/window EventType.MOUSEUP (resize-mouse (.-target e) :mouseup move-key))
          )
        )
-      (events/listenOnce js/window EventType.MOUSEUP (link-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (.-clientY e) (.-shiftKey e)))
+      (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (link-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (.-clientY e) (.-shiftKey e)))
      )
    )
 ;; Dom rendering
@@ -444,6 +446,7 @@
           ]
       [:div
         {:on-key-press #(.log js/console %)}
+        [modals/modal-window]
         [:button {:on-click #((rerender! add-node) [] [])} "Add card"]
         [:button {:on-click #(save-hash @app-state)} "Save"]
         [:button {:on-click #(show-help)} "Help"]
@@ -459,6 +462,7 @@
                        :on-click #((rerender! select-node) (:id node))
                        :data-nodeid (:id node)
                        :on-mouse-down node-mousedown
+                       :on-touch-start node-mousedown
                        :style {
                          :left (str (+ (js/parseInt x-offset) (get-in node [:points :x :min])) "px")
                          :top (str (+ (js/parseInt y-offset) (get-in node [:points :y :min])) "px")
