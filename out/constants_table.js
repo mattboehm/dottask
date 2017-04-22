@@ -339,6 +339,7 @@ cljs.core.cst$sym$nil_DASH_iter = new cljs.core.Symbol(null,"nil-iter","nil-iter
 cljs.core.cst$kw$on_DASH_change = new cljs.core.Keyword(null,"on-change","on-change",-732046149);
 cljs.core.cst$kw$progress = new cljs.core.Keyword(null,"progress","progress",244323547);
 cljs.core.cst$kw$stderr = new cljs.core.Keyword(null,"stderr","stderr",-1571650309);
+cljs.core.cst$kw$on_DASH_touch_DASH_start = new cljs.core.Keyword(null,"on-touch-start","on-touch-start",447239419);
 cljs.core.cst$kw$max_DASH_print_DASH_level = new cljs.core.Keyword(null,"max-print-level","max-print-level",-462237413);
 cljs.core.cst$sym$is_DASH_reagent_DASH_component = new cljs.core.Symbol(null,"is-reagent-component","is-reagent-component",-1856228005,null);
 cljs.core.cst$kw$meta_DASH_wrapper_DASH_style = new cljs.core.Keyword(null,"meta-wrapper-style","meta-wrapper-style",-1627075237);

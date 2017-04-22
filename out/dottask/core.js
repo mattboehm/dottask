@@ -11,6 +11,7 @@ goog.require('goog.events');
 goog.require('devtools.core');
 goog.require('clojure.string');
 goog.require('cljs.reader');
+React.initializeTouchEvents(true);
 dottask.core.ppi = (72);
 dottask.core.debug = (function dottask$core$debug(result){
 console.log("DEBUG",result);
@@ -503,7 +504,7 @@ return node_id;
 });
 dottask.core.link_mouseup = (function dottask$core$link_mouseup(src_node_id,src_y,shift_key){
 return (function (e){
-var node_id = dottask.core.el__GT_nodeid(e.target);
+var node_id = dottask.core.el__GT_nodeid(document.elementFromPoint(e.clientX,e.clientY));
 if(cljs.core.truth_(node_id)){
 if(cljs.core.not_EQ_.cljs$core$IFn$_invoke$arity$2(node_id,src_node_id)){
 return dottask.core.rerender_BANG_(dottask.core.toggle_dep_clear).call(null,new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [src_node_id,node_id], null));
@@ -537,27 +538,27 @@ return null;
 });
 });
 dottask.core.node_mousedown = (function dottask$core$node_mousedown(e){
-if(cljs.core.truth_((function (){var G__12420 = e.target;
-var G__12421 = "node-resize";
-return goog.dom.classlist.contains(G__12420,G__12421);
+if(cljs.core.truth_((function (){var G__12418 = e.target;
+var G__12419 = "node-resize";
+return goog.dom.classlist.contains(G__12418,G__12419);
 })())){
-var move_key = (function (){var G__12422 = window;
-var G__12423 = goog.events.EventType.MOUSEMOVE;
-var G__12424 = dottask.core.resize_mouse(e.target,cljs.core.cst$kw$mousemove,null);
-return goog.events.listen(G__12422,G__12423,G__12424);
+var move_key = (function (){var G__12420 = window;
+var G__12421 = goog.events.EventType.MOUSEMOVE;
+var G__12422 = dottask.core.resize_mouse(e.target,cljs.core.cst$kw$mousemove,null);
+return goog.events.listen(G__12420,G__12421,G__12422);
 })();
-var G__12425 = window;
-var G__12426 = goog.events.EventType.MOUSEUP;
-var G__12427 = dottask.core.resize_mouse(e.target,cljs.core.cst$kw$mouseup,move_key);
-return goog.events.listenOnce(G__12425,G__12426,G__12427);
+var G__12423 = window;
+var G__12424 = goog.events.EventType.MOUSEUP;
+var G__12425 = dottask.core.resize_mouse(e.target,cljs.core.cst$kw$mouseup,move_key);
+return goog.events.listenOnce(G__12423,G__12424,G__12425);
 } else {
-var G__12430 = window;
-var G__12431 = goog.events.EventType.MOUSEUP;
-var G__12432 = dottask.core.link_mouseup((function (){var G__12433 = e.target;
-var G__12434 = "node-overlay";
-return goog.dom.getAncestorByClass(G__12433,G__12434);
+var G__12426 = window;
+var G__12427 = [goog.events.EventType.MOUSEUP,goog.events.EventType.TOUCHEND];
+var G__12428 = dottask.core.link_mouseup((function (){var G__12429 = e.target;
+var G__12430 = "node-overlay";
+return goog.dom.getAncestorByClass(G__12429,G__12430);
 })().getAttribute("data-nodeid"),e.clientY,e.shiftKey);
-return goog.events.listenOnce(G__12430,G__12431,G__12432);
+return goog.events.listenOnce(G__12426,G__12427,G__12428);
 }
 });
 dottask.core.get_toggle_link_button_text = (function dottask$core$get_toggle_link_button_text(state,node_id){
@@ -574,66 +575,66 @@ return "-->";
 }
 });
 dottask.core.graph = (function dottask$core$graph(state){
-var vec__12439 = cljs.core.re_find(/translate\((\d+) (\d+)\)/,cljs.core.cst$kw$svg.cljs$core$IFn$_invoke$arity$1(state));
-var _ = cljs.core.nth.cljs$core$IFn$_invoke$arity$3(vec__12439,(0),null);
-var x_offset = cljs.core.nth.cljs$core$IFn$_invoke$arity$3(vec__12439,(1),null);
-var y_offset = cljs.core.nth.cljs$core$IFn$_invoke$arity$3(vec__12439,(2),null);
-return new cljs.core.PersistentVector(null, 6, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$div,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$on_DASH_key_DASH_press,((function (vec__12439,_,x_offset,y_offset){
-return (function (p1__12435_SHARP_){
-return console.log(p1__12435_SHARP_);
-});})(vec__12439,_,x_offset,y_offset))
-], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$button,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$on_DASH_click,((function (vec__12439,_,x_offset,y_offset){
+var vec__12435 = cljs.core.re_find(/translate\((\d+) (\d+)\)/,cljs.core.cst$kw$svg.cljs$core$IFn$_invoke$arity$1(state));
+var _ = cljs.core.nth.cljs$core$IFn$_invoke$arity$3(vec__12435,(0),null);
+var x_offset = cljs.core.nth.cljs$core$IFn$_invoke$arity$3(vec__12435,(1),null);
+var y_offset = cljs.core.nth.cljs$core$IFn$_invoke$arity$3(vec__12435,(2),null);
+return new cljs.core.PersistentVector(null, 6, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$div,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$on_DASH_key_DASH_press,((function (vec__12435,_,x_offset,y_offset){
+return (function (p1__12431_SHARP_){
+return console.log(p1__12431_SHARP_);
+});})(vec__12435,_,x_offset,y_offset))
+], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$button,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$on_DASH_click,((function (vec__12435,_,x_offset,y_offset){
 return (function (){
 return dottask.core.rerender_BANG_(dottask.core.add_node).call(null,cljs.core.PersistentVector.EMPTY,cljs.core.PersistentVector.EMPTY);
-});})(vec__12439,_,x_offset,y_offset))
-], null),"Add card"], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$button,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$on_DASH_click,((function (vec__12439,_,x_offset,y_offset){
+});})(vec__12435,_,x_offset,y_offset))
+], null),"Add card"], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$button,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$on_DASH_click,((function (vec__12435,_,x_offset,y_offset){
 return (function (){
 return dottask.core.save_hash((cljs.core.deref.cljs$core$IFn$_invoke$arity$1 ? cljs.core.deref.cljs$core$IFn$_invoke$arity$1(dottask.core.app_state) : cljs.core.deref.call(null,dottask.core.app_state)));
-});})(vec__12439,_,x_offset,y_offset))
-], null),"Save"], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$button,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$on_DASH_click,((function (vec__12439,_,x_offset,y_offset){
+});})(vec__12435,_,x_offset,y_offset))
+], null),"Save"], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$button,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$on_DASH_click,((function (vec__12435,_,x_offset,y_offset){
 return (function (){
 return dottask.core.show_help();
-});})(vec__12439,_,x_offset,y_offset))
-], null),"Help"], null),new cljs.core.PersistentVector(null, 4, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$div,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$class,"dotgraph"], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$div,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$class,"graph-overlay"], null),cljs.core.map.cljs$core$IFn$_invoke$arity$2(((function (vec__12439,_,x_offset,y_offset){
+});})(vec__12435,_,x_offset,y_offset))
+], null),"Help"], null),new cljs.core.PersistentVector(null, 4, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$div,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$class,"dotgraph"], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$div,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$class,"graph-overlay"], null),cljs.core.map.cljs$core$IFn$_invoke$arity$2(((function (vec__12435,_,x_offset,y_offset){
 return (function (node){
-return new cljs.core.PersistentVector(null, 9, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$div,new cljs.core.PersistentArrayMap(null, 6, [cljs.core.cst$kw$class,[cljs.core.str("node-overlay "),cljs.core.str(cljs.core.subs.cljs$core$IFn$_invoke$arity$2([cljs.core.str(cljs.core.get_in.cljs$core$IFn$_invoke$arity$2(node,new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$node,cljs.core.cst$kw$status], null)))].join(''),(1))),cljs.core.str(((cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node),cljs.core.cst$kw$selected_DASH_node_DASH_id.cljs$core$IFn$_invoke$arity$1(state)))?" selected":null))].join(''),cljs.core.cst$kw$key,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node),cljs.core.cst$kw$on_DASH_click,((function (vec__12439,_,x_offset,y_offset){
+return new cljs.core.PersistentVector(null, 9, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$div,new cljs.core.PersistentArrayMap(null, 7, [cljs.core.cst$kw$class,[cljs.core.str("node-overlay "),cljs.core.str(cljs.core.subs.cljs$core$IFn$_invoke$arity$2([cljs.core.str(cljs.core.get_in.cljs$core$IFn$_invoke$arity$2(node,new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$node,cljs.core.cst$kw$status], null)))].join(''),(1))),cljs.core.str(((cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node),cljs.core.cst$kw$selected_DASH_node_DASH_id.cljs$core$IFn$_invoke$arity$1(state)))?" selected":null))].join(''),cljs.core.cst$kw$key,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node),cljs.core.cst$kw$on_DASH_click,((function (vec__12435,_,x_offset,y_offset){
 return (function (){
 return dottask.core.rerender_BANG_(dottask.core.select_node).call(null,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node));
-});})(vec__12439,_,x_offset,y_offset))
-,cljs.core.cst$kw$data_DASH_nodeid,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node),cljs.core.cst$kw$on_DASH_mouse_DASH_down,dottask.core.node_mousedown,cljs.core.cst$kw$style,new cljs.core.PersistentArrayMap(null, 4, [cljs.core.cst$kw$left,[cljs.core.str((parseInt(x_offset) + cljs.core.get_in.cljs$core$IFn$_invoke$arity$2(node,new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$points,cljs.core.cst$kw$x,cljs.core.cst$kw$min], null)))),cljs.core.str("px")].join(''),cljs.core.cst$kw$top,[cljs.core.str((parseInt(y_offset) + cljs.core.get_in.cljs$core$IFn$_invoke$arity$2(node,new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$points,cljs.core.cst$kw$y,cljs.core.cst$kw$min], null)))),cljs.core.str("px")].join(''),cljs.core.cst$kw$width,[cljs.core.str((dottask.core.get_node_dim(cljs.core.cst$kw$node.cljs$core$IFn$_invoke$arity$1(node),cljs.core.cst$kw$width) * dottask.core.ppi)),cljs.core.str("px")].join(''),cljs.core.cst$kw$height,[cljs.core.str((dottask.core.get_node_dim(cljs.core.cst$kw$node.cljs$core$IFn$_invoke$arity$1(node),cljs.core.cst$kw$height) * dottask.core.ppi)),cljs.core.str("px")].join('')], null)], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$button,new cljs.core.PersistentArrayMap(null, 3, [cljs.core.cst$kw$class,"add-before",cljs.core.cst$kw$title,"Add Before",cljs.core.cst$kw$on_DASH_click,((function (vec__12439,_,x_offset,y_offset){
+});})(vec__12435,_,x_offset,y_offset))
+,cljs.core.cst$kw$data_DASH_nodeid,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node),cljs.core.cst$kw$on_DASH_mouse_DASH_down,dottask.core.node_mousedown,cljs.core.cst$kw$on_DASH_touch_DASH_start,dottask.core.node_mousedown,cljs.core.cst$kw$style,new cljs.core.PersistentArrayMap(null, 4, [cljs.core.cst$kw$left,[cljs.core.str((parseInt(x_offset) + cljs.core.get_in.cljs$core$IFn$_invoke$arity$2(node,new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$points,cljs.core.cst$kw$x,cljs.core.cst$kw$min], null)))),cljs.core.str("px")].join(''),cljs.core.cst$kw$top,[cljs.core.str((parseInt(y_offset) + cljs.core.get_in.cljs$core$IFn$_invoke$arity$2(node,new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$points,cljs.core.cst$kw$y,cljs.core.cst$kw$min], null)))),cljs.core.str("px")].join(''),cljs.core.cst$kw$width,[cljs.core.str((dottask.core.get_node_dim(cljs.core.cst$kw$node.cljs$core$IFn$_invoke$arity$1(node),cljs.core.cst$kw$width) * dottask.core.ppi)),cljs.core.str("px")].join(''),cljs.core.cst$kw$height,[cljs.core.str((dottask.core.get_node_dim(cljs.core.cst$kw$node.cljs$core$IFn$_invoke$arity$1(node),cljs.core.cst$kw$height) * dottask.core.ppi)),cljs.core.str("px")].join('')], null)], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$button,new cljs.core.PersistentArrayMap(null, 3, [cljs.core.cst$kw$class,"add-before",cljs.core.cst$kw$title,"Add Before",cljs.core.cst$kw$on_DASH_click,((function (vec__12435,_,x_offset,y_offset){
 return (function (evt){
 return dottask.core.rerender_BANG_(dottask.core.add_or_split_node).call(null,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node),cljs.core.cst$kw$before,evt.shiftKey);
-});})(vec__12439,_,x_offset,y_offset))
-], null),"+"], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$span,new cljs.core.PersistentArrayMap(null, 3, [cljs.core.cst$kw$class,"delete",cljs.core.cst$kw$title,"Delete",cljs.core.cst$kw$on_DASH_click,((function (vec__12439,_,x_offset,y_offset){
+});})(vec__12435,_,x_offset,y_offset))
+], null),"+"], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$span,new cljs.core.PersistentArrayMap(null, 3, [cljs.core.cst$kw$class,"delete",cljs.core.cst$kw$title,"Delete",cljs.core.cst$kw$on_DASH_click,((function (vec__12435,_,x_offset,y_offset){
 return (function (){
 return dottask.core.rerender_BANG_(dottask.core.delete_node).call(null,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node));
-});})(vec__12439,_,x_offset,y_offset))
-], null),"\u00D7"], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$button,new cljs.core.PersistentArrayMap(null, 2, [cljs.core.cst$kw$title,"Add/Remove Link",cljs.core.cst$kw$on_DASH_click,((function (vec__12439,_,x_offset,y_offset){
+});})(vec__12435,_,x_offset,y_offset))
+], null),"\u00D7"], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$button,new cljs.core.PersistentArrayMap(null, 2, [cljs.core.cst$kw$title,"Add/Remove Link",cljs.core.cst$kw$on_DASH_click,((function (vec__12435,_,x_offset,y_offset){
 return (function (){
 return dottask.core.rerender_BANG_(dottask.core.on_toggle_dep_click).call(null,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node));
-});})(vec__12439,_,x_offset,y_offset))
-], null),dottask.core.get_toggle_link_button_text(state,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node))], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$button,new cljs.core.PersistentArrayMap(null, 3, [cljs.core.cst$kw$class,"add-after",cljs.core.cst$kw$title,"Add After",cljs.core.cst$kw$on_DASH_click,((function (vec__12439,_,x_offset,y_offset){
-return (function (p1__12436_SHARP_){
-if(cljs.core.truth_(p1__12436_SHARP_.shiftKey)){
+});})(vec__12435,_,x_offset,y_offset))
+], null),dottask.core.get_toggle_link_button_text(state,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node))], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$button,new cljs.core.PersistentArrayMap(null, 3, [cljs.core.cst$kw$class,"add-after",cljs.core.cst$kw$title,"Add After",cljs.core.cst$kw$on_DASH_click,((function (vec__12435,_,x_offset,y_offset){
+return (function (p1__12432_SHARP_){
+if(cljs.core.truth_(p1__12432_SHARP_.shiftKey)){
 return dottask.core.rerender_BANG_(dottask.core.split_node).call(null,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node),cljs.core.cst$kw$after);
 } else {
 return dottask.core.rerender_BANG_(dottask.core.add_node).call(null,new cljs.core.PersistentVector(null, 1, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node)], null),cljs.core.PersistentVector.EMPTY);
 }
-});})(vec__12439,_,x_offset,y_offset))
-], null),"+"], null),new cljs.core.PersistentVector(null, 4, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$select,new cljs.core.PersistentArrayMap(null, 3, [cljs.core.cst$kw$class,"status-picker",cljs.core.cst$kw$value,cljs.core.get_in.cljs$core$IFn$_invoke$arity$2(node,new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$node,cljs.core.cst$kw$status], null)),cljs.core.cst$kw$on_DASH_change,((function (vec__12439,_,x_offset,y_offset){
-return (function (p1__12437_SHARP_){
-return dottask.core.rerender_BANG_(dottask.core.change_node_status).call(null,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node),cljs.core.keyword.cljs$core$IFn$_invoke$arity$1(p1__12437_SHARP_.target.value));
-});})(vec__12439,_,x_offset,y_offset))
-], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$option,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$value,null], null),""], null),cljs.core.map.cljs$core$IFn$_invoke$arity$2(((function (vec__12439,_,x_offset,y_offset){
+});})(vec__12435,_,x_offset,y_offset))
+], null),"+"], null),new cljs.core.PersistentVector(null, 4, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$select,new cljs.core.PersistentArrayMap(null, 3, [cljs.core.cst$kw$class,"status-picker",cljs.core.cst$kw$value,cljs.core.get_in.cljs$core$IFn$_invoke$arity$2(node,new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$node,cljs.core.cst$kw$status], null)),cljs.core.cst$kw$on_DASH_change,((function (vec__12435,_,x_offset,y_offset){
+return (function (p1__12433_SHARP_){
+return dottask.core.rerender_BANG_(dottask.core.change_node_status).call(null,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node),cljs.core.keyword.cljs$core$IFn$_invoke$arity$1(p1__12433_SHARP_.target.value));
+});})(vec__12435,_,x_offset,y_offset))
+], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$option,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$value,null], null),""], null),cljs.core.map.cljs$core$IFn$_invoke$arity$2(((function (vec__12435,_,x_offset,y_offset){
 return (function (status){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$option,new cljs.core.PersistentArrayMap(null, 2, [cljs.core.cst$kw$key,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(status),cljs.core.cst$kw$value,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(status)], null),cljs.core.cst$kw$label.cljs$core$IFn$_invoke$arity$1(status)], null);
-});})(vec__12439,_,x_offset,y_offset))
-,dottask.core.status_list)], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$div,new cljs.core.PersistentArrayMap(null, 3, [cljs.core.cst$kw$class,"task-text",cljs.core.cst$kw$title,"Click to Change",cljs.core.cst$kw$on_DASH_click,((function (vec__12439,_,x_offset,y_offset){
+});})(vec__12435,_,x_offset,y_offset))
+,dottask.core.status_list)], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$div,new cljs.core.PersistentArrayMap(null, 3, [cljs.core.cst$kw$class,"task-text",cljs.core.cst$kw$title,"Click to Change",cljs.core.cst$kw$on_DASH_click,((function (vec__12435,_,x_offset,y_offset){
 return (function (){
 return dottask.core.rerender_BANG_(dottask.core.rename_prompt).call(null,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(node));
-});})(vec__12439,_,x_offset,y_offset))
+});})(vec__12435,_,x_offset,y_offset))
 ], null),cljs.core.get_in.cljs$core$IFn$_invoke$arity$2(node,new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$node,cljs.core.cst$kw$text], null))], null),new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$span,new cljs.core.PersistentArrayMap(null, 2, [cljs.core.cst$kw$style,new cljs.core.PersistentArrayMap(null, 8, [cljs.core.cst$kw$position,"absolute",cljs.core.cst$kw$right,"0",cljs.core.cst$kw$bottom,"0",cljs.core.cst$kw$width,"12px",cljs.core.cst$kw$height,"12px",cljs.core.cst$kw$cursor,"nwse-resize",cljs.core.cst$kw$border_DASH_bottom,"double #888",cljs.core.cst$kw$border_DASH_right,"double #888"], null),cljs.core.cst$kw$class,"draggable node-resize"], null),""], null)], null);
-});})(vec__12439,_,x_offset,y_offset))
+});})(vec__12435,_,x_offset,y_offset))
 ,cljs.core.cst$kw$gdata.cljs$core$IFn$_invoke$arity$1(state))], null),new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$div,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$dangerouslySetInnerHTML,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$__html,cljs.core.cst$kw$svg.cljs$core$IFn$_invoke$arity$1(state)], null)], null)], null)], null)], null);
 });
 document.onkeydown = (function (evt){
@@ -642,8 +643,8 @@ console.log("KEYDOWN",evt,cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(document.
 var shift = evt.shiftKey;
 var selected = cljs.core.cst$kw$selected_DASH_node_DASH_id.cljs$core$IFn$_invoke$arity$1((cljs.core.deref.cljs$core$IFn$_invoke$arity$1 ? cljs.core.deref.cljs$core$IFn$_invoke$arity$1(dottask.core.app_state) : cljs.core.deref.call(null,dottask.core.app_state)));
 if(cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(document.body,evt.target)){
-var G__12440 = evt.which;
-switch (G__12440) {
+var G__12436 = evt.which;
+switch (G__12436) {
 case (68):
 return dottask.core.rerender_BANG_(dottask.core.delete_node).call(null,selected);
 
