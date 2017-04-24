@@ -1,3 +1,7 @@
+.hidden {
+	opacity: 0;
+	display: None;
+}
 .dotgraph {
 	position: absolute;
 	min-width: 100%;
@@ -12,8 +16,8 @@
 	background-color: white;
 }
 body {
-	background-color: #bbc;
-	background-image: url("http://subtlepatterns2015.subtlepatterns.netdna-cdn.com/patterns/textured_paper.png");
+	background-color: #ddd;
+	/*background-image: url("http://subtlepatterns2015.subtlepatterns.netdna-cdn.com/patterns/textured_paper.png");*/
 	background-repeat: repeat;
 }
 .graph-overlay {
@@ -90,4 +94,55 @@ body {
 }
 .node polygon {
 	stroke: #ccc
+}
+.modal-backdrop {
+	z-index: 900;
+	position: fixed;
+	height: 100%;
+	width: 100%;
+	top: 0;
+	left: 0;
+	background-color: rgba(60, 60, 60, 0.7)
+}
+.modal-backdrop.hidden>.modal {
+	opacity: 0;
+	margin-top: 0px;
+}
+.modal {
+	z-index: 1000;
+	background-color: white;
+	border: 1px solid #333;
+	position: relative;
+	/*top: 80px;*/
+	/*width: 50%;*/
+	max-width: calc(100% - 60px);
+	min-width: 400px;
+	max-height: calc(100% - 60px);
+	margin-top: 30px;
+	/*margin-bottom: auto;*/
+	margin-left: auto;
+	margin-right: auto;
+	opacity: 1;
+	transition: 0.7s ease-out;
+}
+.modal-title {
+	font-size: 18pt;
+}
+.modal-buttons {
+	height: 20px;
+	padding-top: 5px;
+}
+.x-button {
+	position: absolute;
+	top: 0px;
+	right: 4px;
+	color: #888;
+	cursor: pointer;
+}
+.modal.bulk-modal {
+	padding: 8px;
+	max-width: 1000px;
+}
+.bulk-modal textarea {
+	width: calc(100% - 8px);
 }

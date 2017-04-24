@@ -21,6 +21,11 @@
   (defn prompt [message val]
     (js/prompt message val)
     )
+  (defn toggler [state key]
+    (fn []
+      (swap! state assoc key (not (key @state)))
+     )
+   )
   (defn extent [numbers] 
     { :min (apply min numbers)
       :max (apply max numbers)
@@ -74,15 +79,17 @@
     ;:tags [["#animals" "#mammals"] ["#animals" "node3"] ["#mammals" "node5"]]
     :tags []
     :nodes [
-      { :id "node1" :text "node 1" }
-      { :id "node2" :text "node 2" }
-      { :id "node3" :text "node 3" }
-      { :id "node4" :text "node 4" }
-      { :id "node5" :text "node 5" }
+      { :id "node1" :text "Drag things" }
+      { :id "node2" :text "Make nodes" }
+      { :id "node3" :text "Make links" }
+      { :id "node4" :text "???" }
+      { :id "node5" :text "Profit!" }
     ]
     :selected-node-id nil
     :toggle-link-node-id nil
-    :deps [["node1" "node3"] ["node2" "node3"] ["node3" "node5"] ["node4" "node5"]]
+    :deps [["node1" "node2"] ["node1" "node3"] ["node2" "node4"] ["node3" "node4"] ["node4" "node5"]]
+    :svg ""
+    :bulk-add-modal-visible? false
   }))
   (def status-list [
     {:id     :todo
@@ -322,6 +329,9 @@
        )
      )
    )
+  (defn add-nodes [state labels]
+   (reduce #(add-node %1 [] [] %2) state labels) 
+   )
   (defn move-deps
     ( [deps old-node-id new-node-id dep-type]
       (move-deps deps old-node-id new-node-id
@@ -438,7 +448,52 @@
        )
       )
     )
-
+  (defn modal [is-visible? close! options contents]
+    [:div {
+           :on-click (fn [e] (when (classlist/contains (.-target e) "modal-backdrop") (close!)))
+           :class (str "modal-backdrop" (if (is-visible?) "" " hidden"))}
+      [:div {:class (str "modal " (:class options ""))}
+        [:span {:class "x-button" :on-click close!} "×"]
+        contents
+       ] 
+     ]
+   )
+  (defn keyed-modal [state modal-key options contents]
+    (modal
+      (fn [] (modal-key @state))
+      (toggler state modal-key)
+      options
+      contents
+     )
+   )
+  (defn textarea [value]
+    [:textarea {
+           :rows 20
+           :value @value
+           :on-change #(reset! value (-> % .-target .-value))}])
+  (defn bulk-add-modal []
+    (let [bulk-text (reagent/atom "")]
+      (keyed-modal app-state :bulk-add-modal-visible? {:class "bulk-modal"}
+        [:div
+          [:div {:class "modal-title"} "Bulk Add"]
+          [:div "Add a line of text for each node you want created"]
+          [textarea bulk-text]
+          [:div {:class "modal-buttons"}
+            [:button
+             {
+               :style {:display "inline-block" :float "right"}
+               :on-click #(
+                 let [lines (remove empty? (clojure.string/split-lines @bulk-text))]
+                 (.log js/console "fooooom" @bulk-text lines)
+                 ((rerender! add-nodes) lines)
+                 ((toggler app-state :bulk-add-modal-visible?))
+              )}
+             "Add nodes"]
+         ]
+         ]
+       )
+     )
+   )
   (defn graph [state]
     (let [[_ x-offset y-offset]
           (re-find #"translate\((\d+) (\d+)\)" (:svg state))
@@ -446,8 +501,10 @@
       [:div
         {:on-key-press #(.log js/console %)}
         [:button {:on-click #((rerender! add-node) [] [])} "Add card"]
+        [:button {:on-click (toggler app-state :bulk-add-modal-visible?)} "Bulk add"]
         [:button {:on-click #(save-hash @app-state)} "Save"]
         [:button {:on-click #(show-help)} "Help"]
+        (bulk-add-modal)
         [:div {:class "dotgraph"
                ;TODO make not add node when dragging
                ;:on-click #(when (and (.-target %) (not (dom/getAncestorByClass (.-target %) "node-overlay"))) (.log js/console "clk" (.-target %))((rerender! add-node) [] []))
