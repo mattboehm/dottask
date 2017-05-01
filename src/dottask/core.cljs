@@ -22,6 +22,7 @@
     {:name "cyan" :hex "#CCF5F5" :shortcut "c"}
     {:name "blue" :hex "#CCCCF5" :shortcut "b"}
                ])
+  (def color-keycode-lookup (zipmap (map :shortcut colors) colors))
 ;; Utils
   (defn debug [result]
     (.log js/console "DEBUG" result)
@@ -66,9 +67,10 @@
       "\tx: delete card\n"
       "\thandle at bottom right: resize card\n"
       "Keyboard Shortcuts:\n"
-      "\tj/k: go to previous/next node\n"
+      "\tj/k: go to previous/next card\n"
       "\td: delete selected card\n"
       "\te: edit text of selected card\n"
+      "\t" (clojure.string/join "/" (map :shortcut colors)) ": change color of selected card to " (clojure.string/join "/" (map :name colors)) "\n" 
       "\t</>: add card before/after\n"
       "\t-: link/unlink cards (first on source, then target)\n"
       "Saving: clicking save adds all the page state to the url hash. "
@@ -100,21 +102,6 @@
     :svg ""
     :bulk-add-modal-visible? false
   }))
-  (def status-list [
-    {:id     :todo
-     :label  "TODO"
-     }
-    {:id     :progress
-     :label  "In progress"
-     }
-    {:id     :done
-     :label  "Done"
-     }
-    {:id     :blocked
-     :label  "Blocked"
-     }
-   ])
-  (def statuses (zipmap (map :id status-list) status-list))
 ;; Save/Load state
   (def state-to-save [:id-counter :tags :nodes :deps])
   (defn save-hash [state]
@@ -283,10 +270,6 @@
        )
      )
    )
-  (defn change-node-status [state node-id status]
-      [state node-id status]
-      (update-node state node-id #(assoc % :status status))
-    )
   (defn select-node [state node-id]
     (assoc state :selected-node-id node-id)
    )
@@ -451,15 +434,6 @@
      )
    )
 ;; Dom rendering
-  (defn get-toggle-link-button-text [state node-id]
-    (let [last-clicked-id (:toggle-link-node-id state)]
-      (cond 
-        (nil? last-clicked-id) "+--"
-        (= last-clicked-id node-id) "x--"
-        :else "-->"
-       )
-      )
-    )
   (defn modal [is-visible? close! options contents]
     [:div {
            :on-click (fn [e] (when (classlist/contains (.-target e) "modal-backdrop") (close!)))
@@ -524,7 +498,7 @@
           [:div {:class "graph-overlay"} 
             (map
               (fn [node]
-                [:div {:class (str "node-overlay " (subs (str (get-in node [:node :status])) 1) (when (= (:id node) (:selected-node-id state)) " selected")) 
+                [:div {:class (str "node-overlay" (when (= (:id node) (:selected-node-id state)) " selected")) 
                        :key (:id node)
                        :on-click #((rerender! select-node) (:id node))
                        :data-nodeid (:id node)
@@ -537,22 +511,16 @@
                          :height (str (* (get-node-dim (:node node) :height) ppi) "px")
                          :background-color (:color (:node node) "")
                        }}
-                  [:button
-                    { :class "add-before"
-                      :title "Add Before"
-                      :on-click (fn [evt] ((rerender! add-or-split-node) (:id node) :before (.-shiftKey evt)))
-                     }
-                    "+"
-                   ]
                   [:span {:class "color-picker"}
                     (map
                       (fn [color] 
                         [:span
-                         {:title (:name color)
+                         {:title (str (:name color) " (shortcut " (:shortcut color) ")")
                           :class "color-swatch"
                           :style {:background-color (:hex color)}
                           :on-click #((rerender! recolor-node) (:id node) (:hex color))
-                          }]
+                          }
+                         ]
                        )
                       colors)
                    ]
@@ -562,30 +530,6 @@
                       :on-click #((rerender! delete-node) (:id node))
                      }
                     "×"
-                   ]
-                  [:button
-                    { :title "Add/Remove Link"
-                      :on-click #((rerender! on-toggle-dep-click) (:id node))
-                     }
-                    (get-toggle-link-button-text state (:id node))
-                   ]
-                  [:button
-                    { :class "add-after"
-                      :title "Add After"
-                      :on-click #(if (.-shiftKey %)
-                                   ((rerender! split-node) (:id node) :after)
-                                   ((rerender! add-node) [(:id node)] []))
-                     }
-                    "+"
-                   ]
-                  [:select
-                    {:class "status-picker"
-                     :value (get-in node [:node :status])
-                     :on-change #((rerender! change-node-status) (:id node) (keyword (.. % -target -value)))}
-                    [:option {:value nil} ""]
-                    (map (fn [status]
-                            [:option {:key (:id status) :value (:id status)} (:label status)]
-                            ) status-list)
                    ]
                   [:div
                     { :class "task-text"
@@ -626,9 +570,12 @@
   (set! (.-onkeydown js/document) (fn [evt] 
     (.log js/console "KEYDOWN" evt (= (.-body js/document) (.-target evt)))
     (let [shift (.-shiftKey evt);whether shift key is being held down
-          selected (:selected-node-id @app-state)]
+          selected (:selected-node-id @app-state)
+          keycode (.-which evt)
+          keychar (clojure.string/lower-case (char keycode))
+          color (get color-keycode-lookup keychar)]
       (when (= (.-body js/document) (.-target evt))
-        (case (.-which evt)
+        (case keycode
           ;d
           68 ((rerender! delete-node) selected) 
           ;e
@@ -647,6 +594,7 @@
           189 ((rerender! on-toggle-dep-click) selected)
           ""
          )
+        (when color ((rerender! recolor-node) selected (:hex color)))
        )
    )))
 

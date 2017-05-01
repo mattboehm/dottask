@@ -62,14 +62,6 @@ body {
 	opacity: 1;
 }
 
-.node-overlay button, .node-overlay select {
-	display: none;
-	opacity: 0.1;
-	transition: opacity 0.2s;
-}
-.node-overlay:hover button, .node-overlay:hover select {
-	opacity: 0.8;
-}
 .node-overlay .node-resize {
 	position: absolute
 	right: 0;
@@ -89,27 +81,13 @@ body {
 	position: absolute;
 	width: 144px;
 	height: 72px;
-	background-color: #FDFDFD;
+	background-color: #F5F5F5;
 	box-shadow: 0 0 5px;
-	/*transition: 0.6s ease-in-out;*/
 	user-select: none;
 	padding-top: 0px;
 }
 .node-overlay.selected {
-	box-shadow: 0 0 10px blue;
-}
-.node-overlay.done {
-	background-color: #BFB;
-}
-.node-overlay.blocked {
-	background-color: #FBB;
-}
-.node-overlay.progress {
-	background-color: #FFB;
-}
-
-.status-picker {
-	width: 20px;
+	box-shadow: 0 0 1px 3px #66C;
 }
 .node polygon {
 	stroke: #ccc
