@@ -13,6 +13,15 @@
   (.initializeTouchEvents js/React true)
 ;; Constants
   (def ppi 72); pixels per inch
+  (def colors [
+    {:name "white" :hex "#F5F5F5" :shortcut "w"}
+    {:name "magenta" :hex "#F5CCF5" :shortcut "m"}
+    {:name "red" :hex "#F5CCCC" :shortcut "r"}
+    {:name "yellow" :hex "#F5F5CC" :shortcut "y"}
+    {:name "green" :hex "#CCF5CC" :shortcut "g"}
+    {:name "cyan" :hex "#CCF5F5" :shortcut "c"}
+    {:name "blue" :hex "#CCCCF5" :shortcut "b"}
+               ])
 ;; Utils
   (defn debug [result]
     (.log js/console "DEBUG" result)
@@ -260,6 +269,9 @@
       (update-node state node-id #(assoc (dissoc % :moving-width :moving-height) w width-pt h height-pt))
      )
    )
+  (defn recolor-node [state node-id color]
+      (update-node state node-id #(assoc % :color color))
+    )
   ; prompt a user for a new name and if they provide one, rename the node to that.
   (defn rename-prompt [state node-id]
     (let [node (get-node (:nodes state) node-id)
@@ -523,7 +535,7 @@
                          :top (str (+ (js/parseInt y-offset) (get-in node [:points :y :min])) "px")
                          :width (str (* (get-node-dim (:node node) :width) ppi) "px")
                          :height (str (* (get-node-dim (:node node) :height) ppi) "px")
-
+                         :background-color (:color (:node node) "")
                        }}
                   [:button
                     { :class "add-before"
@@ -531,6 +543,18 @@
                       :on-click (fn [evt] ((rerender! add-or-split-node) (:id node) :before (.-shiftKey evt)))
                      }
                     "+"
+                   ]
+                  [:span {:class "color-picker"}
+                    (map
+                      (fn [color] 
+                        [:span
+                         {:title (:name color)
+                          :class "color-swatch"
+                          :style {:background-color (:hex color)}
+                          :on-click #((rerender! recolor-node) (:id node) (:hex color))
+                          }]
+                       )
+                      colors)
                    ]
                   [:span
                     { :class "delete"

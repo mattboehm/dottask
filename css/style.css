@@ -13,7 +13,8 @@
 	padding: 5px;
 	width: calc(100% - 26px);
 	height: calc( 100% - 30px);
-	background-color: white;
+	background-color: rgba(255, 255, 255, 0.8);
+	overflow: hidden;
 }
 body {
 	background-color: #ddd;
@@ -43,6 +44,24 @@ body {
 	opacity: 1;
 
 }
+
+.node-overlay .color-picker {
+	position: absolute;
+	top: 1px;
+	right: 16px;
+}
+.node-overlay .color-swatch {
+	opacity: 0;
+	width: 10px;
+	height: 10px;
+	display: inline-block;
+	border: 1px solid #999;
+	cursor: pointer;
+}
+.node-overlay:hover .color-swatch {
+	opacity: 1;
+}
+
 .node-overlay button, .node-overlay select {
 	display: none;
 	opacity: 0.1;
