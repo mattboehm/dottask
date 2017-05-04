@@ -279,7 +279,7 @@
     ;(->> @dt/app-state :gdata (map (fn [node]  (vector (get-in node [:points :y :min])  (get-in node [:points :x :min]) (:id node) (get-in node [:node :text])     ) ) )  sort  )
      (let [gdata (:gdata state)
            positioned-nodes (sort (map (fn [node]  ; [[y x id]...]
-                                   (vector (get-in node [:points :y :min])
+                                   (vector (apply + (vals (get-in node [:points :y]))); sort by the midpoint for the height
                                            (get-in node [:points :x :min])
                                            (:id node)
                                     ))
