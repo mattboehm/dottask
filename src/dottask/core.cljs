@@ -518,6 +518,7 @@
                          {:title (str (:name color) " (shortcut " (:shortcut color) ")")
                           :class "color-swatch"
                           :style {:background-color (:hex color)}
+                          :key (:name color)
                           :on-click #((rerender! recolor-node) (:id node) (:hex color))
                           }
                          ]
