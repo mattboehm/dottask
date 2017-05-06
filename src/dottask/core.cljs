@@ -96,7 +96,7 @@
       { :id "node4" :text "???" }
       { :id "node5" :text "Profit!" }
     ]
-    :clusters []
+    :clusters {}
     :selected-node-id nil
     :toggle-link-node-id nil
     :deps [["node1" "node2"] ["node1" "node3"] ["node2" "node4"] ["node3" "node4"] ["node4" "node5"]]
@@ -133,15 +133,7 @@
      )
     
     )
-  (defn render-tag-tree [tree]
-    (cond 
-      (seq? tree) (apply str (map render-tag-tree tree))
-      (not= (first (:node tree)) "#") (str (:node tree) ";")
-      :else (str "subgraph cluster_" (string/replace (:node tree) #"#" "") "{label=\"" (:node tree) "\";" (render-tag-tree (:children tree)) "}")
-    )
-  )
 (defn cluster->dot [cluster-id nodes-by-cluster-id clusters-by-cluster-id]
-  (.log js/console  "cldot" cluster-id nodes-by-cluster-id clusters-by-cluster-id)
     (str
       "\nsubgraph " (or cluster-id "root") "{\n"
       "label=\" \";\n "
@@ -153,12 +145,11 @@
   )
 ;; Make graph
   (defn to-dot [nodes deps clusters]
-    (let [nodes-by-cluster-id (group-by :cluster-id nodes) clusters-by-cluster-id (group-by :cluster-id clusters)]
+    (let [nodes-by-cluster-id (group-by :cluster-id nodes) clusters-by-cluster-id (group-by :cluster-id (vals clusters))]
       (str
        "digraph G {\n"
        "dpi=72;"
        "node [label=\"\" shape=\"rect\"]\n"
-       ;"subgraph cluster_foo {label = \"testing\"; node1; node2;}"
        (cluster->dot nil nodes-by-cluster-id clusters-by-cluster-id)
         (->>
           (concat
@@ -373,7 +364,7 @@
     (let [cluster-id (str "cluster_" (:id-counter state))]
       (reduce
         #(recluster-node %1 %2 cluster-id)
-        (assoc state :clusters (conj (:clusters state) {:id cluster-id :text text}) :id-counter (inc (:id-counter state)))
+        (assoc state :clusters (assoc (:clusters state) cluster-id {:id cluster-id :text text}) :id-counter (inc (:id-counter state)))
         node-ids
        )
      )
@@ -381,7 +372,7 @@
   (defn delete-cluster [state id]
     (assoc state
            :nodes (map #(if (= (:cluster-id %) id) (assoc % :cluster-id nil) %) (:nodes state))
-           :clusters (filterv #(not= id (:id %)) (:clusters state)))
+           :clusters (dissoc (:clusters state) id))
    )
   (defn toggle-node-cluster [state node-id cluster-id]
     (let [new-cluster-id (if (= cluster-id (:cluster-id (get-node (:nodes state) node-id))) "" cluster-id)]
@@ -666,7 +657,6 @@
                       left (+ 1 (js/parseInt x-offset) (get-in cluster [:points :x :min]))
                       right (+ -1 (js/parseInt x-offset) (get-in cluster [:points :x :max]))
                       width (- right left)
-                      cluster-map (group-by :id (:clusters state))
                       ]
                 [:div {:class "cluster-overlay"
                        :key (:id cluster)
@@ -691,7 +681,7 @@
                      }
                     "×"
                    ]
-                   (:text (first (get cluster-map (:id cluster))))
+                   (:text (get (:clusters state) (:id cluster)))
                  ])
                )
               (:gclusters state))
