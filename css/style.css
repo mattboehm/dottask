@@ -1,3 +1,7 @@
+.hidden {
+	opacity: 0;
+	display: None;
+}
 .dotgraph {
 	position: absolute;
 	min-width: 100%;
@@ -9,11 +13,14 @@
 	padding: 5px;
 	width: calc(100% - 26px);
 	height: calc( 100% - 30px);
-	background-color: white;
+	color: #333;
+	font-family: sans-serif;
+	font-size: 11pt;
+	background-color: rgba(255, 255, 255, 0.8);
+	overflow: hidden;
 }
 body {
-	background-color: #bbc;
-	background-image: url("http://subtlepatterns2015.subtlepatterns.netdna-cdn.com/patterns/textured_paper.png");
+	background-color: #f4f4f4;
 	background-repeat: repeat;
 }
 .graph-overlay {
@@ -24,7 +31,7 @@ body {
 #graph0>polygon{
 	opacity: 0;
 }
-.node-overlay span.delete{
+span.delete{
 	position: absolute;
 	right: 0px;
 	color: #888;
@@ -35,18 +42,28 @@ body {
 	opacity: 0;
 	transition: opacity 0.2s;
 }
-.node-overlay:hover span.delete{
+div:hover>span.delete{
 	opacity: 1;
+}
 
+.node-overlay .color-picker {
+	position: absolute;
+	top: -13px;
+	left: 0px;
+	opacity: 0.7;
 }
-.node-overlay button, .node-overlay select {
-	display: none;
-	opacity: 0.1;
-	transition: opacity 0.2s;
+.node-overlay .color-swatch {
+	opacity: 0;
+	width: 10px;
+	height: 10px;
+	display: inline-block;
+	border: 1px solid #999;
+	cursor: pointer;
 }
-.node-overlay:hover button, .node-overlay:hover select {
-	opacity: 0.8;
+.node-overlay:hover .color-swatch {
+	opacity: 1;
 }
+
 .node-overlay .node-resize {
 	position: absolute
 	right: 0;
@@ -63,31 +80,78 @@ body {
 	opacity: 0.8;
 }
 .node-overlay {
+	transition: 0.4s ease-in, box-shadow 0.1s ease-out, background-color 0.15s ease-out;
 	position: absolute;
 	width: 144px;
 	height: 72px;
-	background-color: #FDFDFD;
-	box-shadow: 0 0 5px;
-	/*transition: 0.6s ease-in-out;*/
+	background-color: #F5F5F5;
+	border: 1px solid #888;
+	border-radius: 2px;
 	user-select: none;
 	padding-top: 0px;
 }
 .node-overlay.selected {
-	box-shadow: 0 0 10px blue;
+	box-shadow: 0 0 1px 2.5px #FF4;
 }
-.node-overlay.done {
-	background-color: #BFB;
-}
-.node-overlay.blocked {
-	background-color: #FBB;
-}
-.node-overlay.progress {
-	background-color: #FFB;
-}
-
-.status-picker {
-	width: 20px;
+.cluster-overlay {
+	transition: 0.5s ease-in;
+	user-select: none;
+	font-family: sans-serif;
+	font-size: 11pt;
+	color: #333;
+	box-shadow: 0 0 0 1px rgba(102, 102, 102, 0.75);
 }
 .node polygon {
 	stroke: #ccc
+}
+.modal-backdrop {
+	z-index: 900;
+	position: fixed;
+	height: 100%;
+	width: 100%;
+	top: 0;
+	left: 0;
+	background-color: rgba(60, 60, 60, 0.7)
+}
+.modal-backdrop.hidden>.modal {
+	opacity: 0;
+	margin-top: 0px;
+}
+.modal {
+	z-index: 1000;
+	background-color: white;
+	border: 1px solid #333;
+	position: relative;
+	/*top: 80px;*/
+	/*width: 50%;*/
+	max-width: calc(100% - 60px);
+	min-width: 400px;
+	max-height: calc(100% - 60px);
+	margin-top: 30px;
+	/*margin-bottom: auto;*/
+	margin-left: auto;
+	margin-right: auto;
+	opacity: 1;
+	transition: 0.7s ease-out;
+}
+.modal-title {
+	font-size: 18pt;
+}
+.modal-buttons {
+	height: 20px;
+	padding-top: 5px;
+}
+.x-button {
+	position: absolute;
+	top: 0px;
+	right: 4px;
+	color: #888;
+	cursor: pointer;
+}
+.modal.bulk-modal {
+	padding: 8px;
+	max-width: 1000px;
+}
+.bulk-modal textarea {
+	width: calc(100% - 8px);
 }
