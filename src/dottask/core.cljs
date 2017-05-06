@@ -386,17 +386,22 @@
        )
      )
    )
-  (defn add-cluster [state text node-ids]
-    (let [cluster-id (str "cluster_" (:id-counter state))]
-      (reduce
-        #(recluster-node %1 %2 cluster-id)
-        (assoc state :clusters (assoc (:clusters state) cluster-id {:id cluster-id :text text}) :id-counter (inc (:id-counter state)))
-        node-ids
+  (defn add-cluster 
+    ([state node-ids]
+      (add-cluster state (prompt "Enter a name for the box" "") node-ids)
+     )
+    ([state text node-ids]
+      (let [cluster-id (str "cluster_" (:id-counter state))]
+        (reduce
+          #(recluster-node %1 %2 cluster-id)
+          (assoc state :clusters (assoc (:clusters state) cluster-id {:id cluster-id :text text}) :id-counter (inc (:id-counter state)))
+          node-ids
+         )
        )
      )
    )
   (defn delete-cluster [state id]
-    (let [wipe-id #(if (= (:cluster-id %) id) (assoc % :cluster-id nil) %)]
+    (let [wipe-id #(if (= (:cluster-id %) id) (assoc % :cluster-id (get-in state [:clusters id :cluster-id])) %)]
       (assoc state
         :nodes (map wipe-id (:nodes state))
         :clusters (map-vals wipe-id (dissoc (:clusters state) id))
@@ -417,6 +422,12 @@
       state
      )
    )
+  (defn outer-cluster-prompt [state inner-cluster-id]
+    (->
+      (add-cluster state [])
+      (toggle-cluster-nesting inner-cluster-id (str "cluster_" (:id-counter state)))
+     )
+    )
   (defn toggle-node-cluster [state node-id cluster-id]
     (let [new-cluster-id (if (= cluster-id (:cluster-id (get-node (:nodes state) node-id))) "" cluster-id)]
       (recluster-node state node-id new-cluster-id)
@@ -523,19 +534,18 @@
             ]
         (if node-id
           ((rerender! toggle-node-cluster) node-id src-cluster-id) 
-          ; If on a different cluster, nest this one inside it
-          (if (and cluster-id (not= cluster-id src-cluster-id))
-            ((rerender! toggle-cluster-nesting) src-cluster-id cluster-id)
-             ;If not on a node/cluster, make a new node/cluster outside of this one
-            ;(if shift-key
-              ;((rerender! add-cluster) )
-              ;((rerender! add-node) )
-            ;)
+          (when (not= cluster-id src-cluster-id)
+            (if cluster-id
+              ; If on a different cluster, nest this one inside it
+              ((rerender! toggle-cluster-nesting) src-cluster-id cluster-id)
+               ;If not on a node/cluster, make a new node/cluster outside of this one
+              ((rerender! outer-cluster-prompt) src-cluster-id)
+             )
+           )
          )
        )
      )
    )
-  )
   (defn resize-mouse [target evt-type move-key]
     (fn [e]
       (let [ node( dom/getAncestorByClass target "node-overlay")
