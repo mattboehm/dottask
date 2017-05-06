@@ -63,13 +63,15 @@
       "\tdrag from one card to empty space above/below:"
       "\t   create card linked to/from start card\n"
       "\t   hold down shift to 'split' the card into 2\n"
+      "\tdrag between cards and box titles: box/unbox cards\n"
       "Buttons:\n"
-      "\tx: delete card\n"
+      "\tx: delete card/box\n"
       "\thandle at bottom right: resize card\n"
       "Keyboard Shortcuts:\n"
       "\tj/k: go to previous/next card\n"
       "\td: delete selected card\n"
       "\te: edit text of selected card\n"
+      "\ti: put selected card inside a new box\n"
       "\t" (clojure.string/join "/" (map :shortcut colors)) ": change color of selected card to " (clojure.string/join "/" (map :name colors)) "\n" 
       "\t</>: add card before/after\n"
       "\t-: link/unlink cards (first on source, then target)\n"
@@ -87,8 +89,6 @@
 ;; State
   (defonce app-state (reagent/atom {
     :id-counter 6
-    ;:tags [["#animals" "#mammals"] ["#animals" "node3"] ["#mammals" "node5"]]
-    :tags []
     :nodes [
       { :id "node1" :text "Drag things" }
       { :id "node2" :text "Make nodes" }
@@ -96,6 +96,7 @@
       { :id "node4" :text "???" }
       { :id "node5" :text "Profit!" }
     ]
+    :clusters []
     :selected-node-id nil
     :toggle-link-node-id nil
     :deps [["node1" "node2"] ["node1" "node3"] ["node2" "node4"] ["node3" "node4"] ["node4" "node5"]]
@@ -103,7 +104,7 @@
     :bulk-add-modal-visible? false
   }))
 ;; Save/Load state
-  (def state-to-save [:id-counter :tags :nodes :deps])
+  (def state-to-save [:id-counter :clusters :nodes :deps])
   (defn save-hash [state]
     (aset js/window "location" "hash" (js/encodeURIComponent(pr-str(select-keys state state-to-save))))
     )
@@ -139,63 +140,106 @@
       :else (str "subgraph cluster_" (string/replace (:node tree) #"#" "") "{label=\"" (:node tree) "\";" (render-tag-tree (:children tree)) "}")
     )
   )
-;; Make graph
-  (defn to-dot [nodes deps tags]
+(defn cluster->dot [cluster-id nodes-by-cluster-id clusters-by-cluster-id]
+  (.log js/console  "cldot" cluster-id nodes-by-cluster-id clusters-by-cluster-id)
     (str
-     "digraph G {\n"
-     "dpi=72;"
-     "node [label=\"\" shape=\"rect\"]\n"
-      (when (seq tags) (render-tag-tree (treeify tags)))
-      (->>
-        (concat
-          (map #(str (:id %) "[height=\"" (get-node-dim % :height) "\" width=\"" (get-node-dim % :width) "\"];") nodes)
-          (map #(str (first %) "->" (second %) ";") deps)
+      "\nsubgraph " (or cluster-id "root") "{\n"
+      "label=\" \";\n "
+      (clojure.string/join "\n" (map #(cluster->dot % nodes-by-cluster-id clusters-by-cluster-id) (map :id (get clusters-by-cluster-id cluster-id))))
+      "\n"
+      (clojure.string/join ";\n" (map :id (get nodes-by-cluster-id cluster-id)))
+      "}\n"
+    )
+  )
+;; Make graph
+  (defn to-dot [nodes deps clusters]
+    (let [nodes-by-cluster-id (group-by :cluster-id nodes) clusters-by-cluster-id (group-by :cluster-id clusters)]
+      (str
+       "digraph G {\n"
+       "dpi=72;"
+       "node [label=\"\" shape=\"rect\"]\n"
+       ;"subgraph cluster_foo {label = \"testing\"; node1; node2;}"
+       (cluster->dot nil nodes-by-cluster-id clusters-by-cluster-id)
+        (->>
+          (concat
+            (map #(str (:id %) "[height=\"" (get-node-dim % :height) "\" width=\"" (get-node-dim % :width) "\"];") nodes)
+            (map #(str (first %) "->" (second %) ";") deps)
+          )
+          (interpose "\n")
+          (apply str)
         )
-        (interpose "\n")
-        (apply str)
+        "}"
       )
-      "}"
     )
   )
 
   ;get the bounding box for points
-  (defn parse-points [pointstr]
+  (defn get-points [cljdotnode]
+    (let [points 
+          (->> 
+            cljdotnode
+            :content
+            second
+            :attributes
+            :points
+           )
+          ]
+      (->>
+        (string/split points #" ")
+        (map #(string/split % #","))
+        (map #(map js/parseInt %))
+        (apply map vector);zip
+        (map extent)
+        (zipmap [:x :y])
+       )
+     )
+   )
+  (defn get-cljdot-id [item]
     (->>
-      (string/split pointstr #" ")
-      (map #(string/split % #","))
-      (map #(map js/parseInt %))
-      (apply map vector);zip
-      (map extent)
-      (zipmap [:x :y])
-    )
-  )
-
-  (defn get-nodes [cljdot]
+      item
+      :content
+      first
+      :content
+      first
+     )
+   )
+  (defn get-gdata [cljdot]
     (->>
       cljdot
       :content
       first
       :content
-      (filter #(= (:class(:attributes %)) "node"))
-      (map (fn [node]
-             {
-              :id (->>
-                    node
-                    :content
-                    first
-                    :content
-                    first)
-               :points (
-                        ->>
-                        node
-                        :content
-                        second
-                        :attributes
-                        :points
-                        parse-points
-                        )
-              }
-             ))
+    )
+    (let [ items (->>
+                   cljdot
+                   :content
+                   first
+                   :content
+                  )
+          ]
+      {:nodes 
+        (->>
+          items
+          (filter #(= (:class(:attributes %)) "node"))
+          (map (fn [node]
+                 {
+                  :id (get-cljdot-id node)
+                  :points (get-points node)
+                  }
+                 ))
+         )
+        :clusters
+        (->>
+            items
+            (filter #(= (:class(:attributes %)) "cluster"))
+            (map (fn [cluster]
+                   {
+                    :id (get-cljdot-id cluster)
+                    :points (get-points cluster)
+                    }
+                 ))
+         )
+       }
     )
   )
 
@@ -210,21 +254,23 @@
   ;Whenever you change the nodes, deps, etc, you need to re-generate the graph
   (defn update-state [state]
     (let [
-          dot (to-dot (:nodes state) (:deps state) (:tags state))
+          dot (to-dot (:nodes state) (:deps state) (:clusters state))
           same-graph (= dot (:dot state));if the dot is the same, don't need to re-calc svg/gdata
           svg (if same-graph (:svg state) (dot->svg dot))
           gdata
-            (if same-graph (:gdata state) (->>
+            (if same-graph {:nodes (:gnodes state) :clusters (:gclusters state)} (->>
                 svg
                 tbx/xml->clj
-                get-nodes
+                get-gdata
               )
             )
           ]
       (assoc state :dot dot :svg svg
              ;add the nodes from :nodes state to the gdata version.
              ;even if the dot representation hasn't changed, we want to always update this.
-             :gdata (mapv #(assoc % :node (get-node (:nodes state) (:id %))) gdata))
+             :gnodes (mapv #(assoc % :node (get-node (:nodes state) (:id %))) (:nodes gdata))
+             :gclusters (:clusters gdata)
+       )
     )
   )
 
@@ -245,8 +291,8 @@
      )
   )
   (defn rename-node [state node-id text]
-      (update-node state node-id #(assoc % :text text))
-    )
+    (update-node state node-id #(assoc % :text text))
+   )
   (defn resize-node [state node-id width height evt-type]
     (let [ height-pt (/ height ppi)
            width-pt (/ width ppi)
@@ -259,6 +305,9 @@
   (defn recolor-node [state node-id color]
       (update-node state node-id #(assoc % :color color))
     )
+  (defn recluster-node [state node-id cluster-id]
+    (update-node state node-id #(assoc % :cluster-id cluster-id))
+   )
   ; prompt a user for a new name and if they provide one, rename the node to that.
   (defn rename-prompt [state node-id]
     (let [node (get-node (:nodes state) node-id)
@@ -276,8 +325,7 @@
   (defn select-next-node
     ([state] (select-next-node state 1))
     ([state direction]
-    ;(->> @dt/app-state :gdata (map (fn [node]  (vector (get-in node [:points :y :min])  (get-in node [:points :x :min]) (:id node) (get-in node [:node :text])     ) ) )  sort  )
-     (let [gdata (:gdata state)
+     (let [gdata (:gnodes state)
            positioned-nodes (sort (map (fn [node]  ; [[y x id]...]
                                    (vector (apply + (vals (get-in node [:points :y]))); sort by the midpoint for the height
                                            (get-in node [:points :x :min])
@@ -311,9 +359,6 @@
       (let [
             new_node {:id (str "node" (:id-counter state)) :text text}
             new_nodes (conj (:nodes state) new_node)
-            ;new_deps (into 
-                     ;)
-            ;all_deps (into (:deps state) new_deps)
             all_deps (reduce into (:deps state) [
                        (map #(vector % (:id new_node)) befores)
                        (map #(vector (:id new_node) %) afters)
@@ -322,6 +367,25 @@
             ]
         (assoc state :nodes new_nodes :deps all_deps :id-counter (inc (:id-counter state)))
        )
+     )
+   )
+  (defn add-cluster [state text node-ids]
+    (let [cluster-id (str "cluster_" (:id-counter state))]
+      (reduce
+        #(recluster-node %1 %2 cluster-id)
+        (assoc state :clusters (conj (:clusters state) {:id cluster-id :text text}) :id-counter (inc (:id-counter state)))
+        node-ids
+       )
+     )
+   )
+  (defn delete-cluster [state id]
+    (assoc state
+           :nodes (map #(if (= (:cluster-id %) id) (assoc % :cluster-id nil) %) (:nodes state))
+           :clusters (filterv #(not= id (:id %)) (:clusters state)))
+   )
+  (defn toggle-node-cluster [state node-id cluster-id]
+    (let [new-cluster-id (if (= cluster-id (:cluster-id (get-node (:nodes state) node-id))) "" cluster-id)]
+      (recluster-node state node-id new-cluster-id)
      )
    )
   (defn add-nodes [state labels]
@@ -391,19 +455,53 @@
       node-id
      )
    )
+  (defn el->clusterid [el]
+    (let [cluster (dom/getAncestorByClass el "cluster-overlay")
+          cluster-id (when cluster (.getAttribute cluster "data-clusterid"))
+          ]
+      cluster-id
+     )
+   )
   (defn link-mouseup [src-node-id src-y shift-key]
     (fn [e]
-      (let [ node-id (el->nodeid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
+      (let [
+            node-id (el->nodeid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
+            cluster-id (el->clusterid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
             ]
         (if node-id
           ; If on a different node, link to it
           (when (not= node-id src-node-id) ((rerender! toggle-dep-clear) [src-node-id node-id]))
-          ; If not on a node, add a new node before/after based on deltaY
-          ((rerender! add-or-split-node) src-node-id (if (< (.-clientY e) src-y) :before :after) shift-key)
+          (if cluster-id
+            ((rerender! toggle-node-cluster) src-node-id cluster-id) 
+            ; If not on a node, add a new node before/after based on deltaY
+            ((rerender! add-or-split-node) src-node-id (if (< (.-clientY e) src-y) :before :after) shift-key)
+            
          )
        )
      )
    )
+  )
+  (defn cluster-mouseup [src-cluster-id shift-key]
+    (fn [e]
+      (let [
+            node-id (el->nodeid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
+            cluster-id (el->clusterid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
+            ]
+        (if node-id
+          ((rerender! toggle-node-cluster) node-id src-cluster-id) 
+          ; If on a different cluster, nest this one inside it
+          ;(if cluster-id
+            ;((rerender! toggle-cluster-cluster) src-cluster-id cluster-id)
+            ; If not on a node/cluster, make a new node/cluster outside of this one
+            ;(if shift-key
+              ;((rerender! add-cluster) )
+              ;((rerender! add-node) )
+            ;)
+         ;)
+       )
+     )
+   )
+  )
   (defn resize-mouse [target evt-type move-key]
     (fn [e]
       (let [ node( dom/getAncestorByClass target "node-overlay")
@@ -432,6 +530,9 @@
        )
       (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (link-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (.-clientY e) (.-shiftKey e)))
      )
+   )
+  (defn cluster-mousedown [e]
+    (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (cluster-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "cluster-overlay") "data-clusterid") (.-shiftKey e)))
    )
 ;; Dom rendering
   (defn modal [is-visible? close! options contents]
@@ -475,7 +576,7 @@
                  ((toggler app-state :bulk-add-modal-visible?))
               )}
              "Add nodes"]
-         ]
+           ]
          ]
        )
      )
@@ -557,7 +658,43 @@
                    ]
                  ]
                )
-              (:gdata state))
+              (:gnodes state))
+            (map
+              (fn [cluster]
+                (let [
+                      top (+ 1 (js/parseInt y-offset) (get-in cluster [:points :y :min]))
+                      left (+ 1 (js/parseInt x-offset) (get-in cluster [:points :x :min]))
+                      right (+ -1 (js/parseInt x-offset) (get-in cluster [:points :x :max]))
+                      width (- right left)
+                      cluster-map (group-by :id (:clusters state))
+                      ]
+                [:div {:class "cluster-overlay"
+                       :key (:id cluster)
+                       :data-clusterid (:id cluster)
+                       :on-mouse-down cluster-mousedown
+                       :on-touch-start cluster-mousedown
+                       :style {
+                         :position "absolute"
+                         :background-color "rgba(255, 255, 255, 0.75)"
+                         :left (str left "px")
+                         :top (str top "px")
+                         :width (str width "px")
+                         :height "18px"
+                         :padding-top "1px"
+                         :text-align "center"
+                         
+                       }}
+                  [:span
+                    { :class "delete"
+                      :title "Delete"
+                      :on-click #((rerender! delete-cluster) (:id cluster))
+                     }
+                    "×"
+                   ]
+                   (:text (first (get cluster-map (:id cluster))))
+                 ])
+               )
+              (:gclusters state))
           ]
           [:div {:dangerouslySetInnerHTML {:__html
                 (:svg state)
@@ -581,6 +718,8 @@
           68 ((rerender! delete-node) selected) 
           ;e
           69 ((rerender! rename-prompt) selected)
+          ;i
+          73 ((rerender! add-cluster) (prompt "Enter Title:" "") [selected]) 
           ;j
           74 ((rerender! select-next-node) 1)
           ;k

@@ -17,7 +17,7 @@
 	overflow: hidden;
 }
 body {
-	background-color: #ddd;
+	background-color: #f4f4f4;
 	/*background-image: url("http://subtlepatterns2015.subtlepatterns.netdna-cdn.com/patterns/textured_paper.png");*/
 	background-repeat: repeat;
 }
@@ -29,7 +29,7 @@ body {
 #graph0>polygon{
 	opacity: 0;
 }
-.node-overlay span.delete{
+span.delete{
 	position: absolute;
 	right: 0px;
 	color: #888;
@@ -40,15 +40,15 @@ body {
 	opacity: 0;
 	transition: opacity 0.2s;
 }
-.node-overlay:hover span.delete{
+div:hover>span.delete{
 	opacity: 1;
-
 }
 
 .node-overlay .color-picker {
 	position: absolute;
-	top: 1px;
-	right: 16px;
+	top: -13px;
+	left: 0px;
+	opacity: 0.7;
 }
 .node-overlay .color-swatch {
 	opacity: 0;
@@ -82,12 +82,16 @@ body {
 	width: 144px;
 	height: 72px;
 	background-color: #F5F5F5;
-	box-shadow: 0 0 5px;
+	border: 1px solid #444;
+	border-radius: 2px;
 	user-select: none;
 	padding-top: 0px;
 }
 .node-overlay.selected {
-	box-shadow: 0 0 1px 3px #66C;
+	box-shadow: 0 0 1px 3px #FF4;
+}
+.cluster-overlay {
+	user-select: none;
 }
 .node polygon {
 	stroke: #ccc
