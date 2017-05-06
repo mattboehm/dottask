@@ -8,7 +8,11 @@
     [goog.dom :as dom]
     [goog.dom.classlist :as classlist]
     [goog.events :as events]
+    [historian.core :as hist]
     [tubax.core :as tbx])
+  (:require-macros
+    [historian.core :as hist]
+   )
   (:import [goog.events EventType])
 )
 ;; Constants
@@ -617,6 +621,8 @@
         [:button {:on-click #((rerender! add-node) [] [])} "Add card"]
         [:button {:on-click (toggler app-state :bulk-add-modal-visible?)} "Bulk add"]
         [:button {:on-click #(save-hash @app-state)} "Save"]
+        [:button {:on-click hist/undo!} "Undo"]
+        [:button {:on-click hist/redo!} "Redo"]
         [:button {:on-click #(show-help)} "Help"]
         (bulk-add-modal)
         [:div {:class "dotgraph"
@@ -628,7 +634,7 @@
               (fn [node]
                 [:div {:class (str "node-overlay" (when (= (:id node) (:selected-node-id state)) " selected")) 
                        :key (:id node)
-                       :on-click #((rerender! select-node) (:id node))
+                       :on-click (fn [] (hist/off-the-record ((rerender! select-node) (:id node))))
                        :on-double-click #((rerender! add-cluster) (prompt "Enter title for box:" "") [(:id node)])
                        :data-nodeid (:id node)
                        :on-mouse-down node-mousedown
@@ -744,6 +750,10 @@
           color (get color-keycode-lookup keychar)]
       (when (= (.-body js/document) (.-target evt))
         (case keycode
+          ;<-
+          37 (when shift (hist/undo!))
+          ;->
+          39 (when shift (hist/redo!))
           ;d
           68 ((rerender! delete-node) selected) 
           ;e
@@ -751,9 +761,9 @@
           ;i
           73 ((rerender! add-cluster) (prompt "Enter title for box:" "") [selected]) 
           ;j
-          74 ((rerender! select-next-node) 1)
+          74 (hist/off-the-record ((rerender! select-next-node) 1))
           ;k
-          75 ((rerender! select-next-node) -1)
+          75 (hist/off-the-record ((rerender! select-next-node) -1))
           ;n
           78 ((rerender! add-node) [] [] (prompt "Enter title for node:" ""))
           ;,/<
@@ -783,3 +793,4 @@
   ;whenever the app state changes, render the whole page
   (add-watch app-state :on-change (fn [_ _ _ _] (render!)))
   (swap! app-state update-state)
+  (hist/record! app-state :app-state)
