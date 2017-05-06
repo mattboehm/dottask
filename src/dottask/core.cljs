@@ -41,6 +41,13 @@
       :max (apply max numbers)
     } 
    )
+  (defn map-vals [func hmap]
+    (into {}
+      (for [[k v] hmap]
+        [k (func v)]
+       )
+     )
+   )
   (defn get-node [nodes id]
     (first (filter #(= id (:id %)) nodes))
    )
@@ -360,6 +367,25 @@
        )
      )
    )
+  (defn inside-cluster? [clusters child parent-id]
+    (.log js/console "ddddd" clusters child parent-id)
+    (cond
+      (nil? (:cluster-id child)) false
+      (= parent-id (:cluster-id child)) true
+      :else (inside-cluster? clusters (get clusters (:cluster-id child)) parent-id)
+     )
+   )
+  (defn toggle-cluster-nesting[state child-id parent-id]
+    (if (inside-cluster? (:clusters state) (get-in state [:clusters parent-id]) child-id)
+      state
+      (assoc-in state [:clusters child-id :cluster-id]
+        (if (= parent-id (get-in state [:clusters child-id :cluster-id]))
+          nil
+          parent-id
+         )
+       )
+     )
+   )
   (defn add-cluster [state text node-ids]
     (let [cluster-id (str "cluster_" (:id-counter state))]
       (reduce
@@ -370,9 +396,26 @@
      )
    )
   (defn delete-cluster [state id]
-    (assoc state
-           :nodes (map #(if (= (:cluster-id %) id) (assoc % :cluster-id nil) %) (:nodes state))
-           :clusters (dissoc (:clusters state) id))
+    (let [wipe-id #(if (= (:cluster-id %) id) (assoc % :cluster-id nil) %)]
+      (assoc state
+        :nodes (map wipe-id (:nodes state))
+        :clusters (map-vals wipe-id (dissoc (:clusters state) id))
+       )
+     )
+   )
+  (defn rename-cluster [state cluster-id name]
+    (assoc-in state [:clusters cluster-id :text] name)
+   )
+  (defn rename-cluster-prompt [state cluster-id]
+    (if (get-in state [:clusters cluster-id])
+      (let [new-name (prompt "Enter new name" (get-in state [:clusters cluster-id :text]))]
+        (if new-name
+          (rename-cluster state cluster-id new-name)
+          state
+         )
+       )
+      state
+     )
    )
   (defn toggle-node-cluster [state node-id cluster-id]
     (let [new-cluster-id (if (= cluster-id (:cluster-id (get-node (:nodes state) node-id))) "" cluster-id)]
@@ -481,14 +524,14 @@
         (if node-id
           ((rerender! toggle-node-cluster) node-id src-cluster-id) 
           ; If on a different cluster, nest this one inside it
-          ;(if cluster-id
-            ;((rerender! toggle-cluster-cluster) src-cluster-id cluster-id)
-            ; If not on a node/cluster, make a new node/cluster outside of this one
+          (if (and cluster-id (not= cluster-id src-cluster-id))
+            ((rerender! toggle-cluster-nesting) src-cluster-id cluster-id)
+             ;If not on a node/cluster, make a new node/cluster outside of this one
             ;(if shift-key
               ;((rerender! add-cluster) )
               ;((rerender! add-node) )
             ;)
-         ;)
+         )
        )
      )
    )
@@ -663,6 +706,7 @@
                        :data-clusterid (:id cluster)
                        :on-mouse-down cluster-mousedown
                        :on-touch-start cluster-mousedown
+                       :on-click #((rerender! rename-cluster-prompt) (:id cluster))
                        :style {
                          :position "absolute"
                          :background-color "rgba(255, 255, 255, 0.75)"
