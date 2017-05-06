@@ -13,12 +13,14 @@
 	padding: 5px;
 	width: calc(100% - 26px);
 	height: calc( 100% - 30px);
+	color: #333;
+	font-family: sans-serif;
+	font-size: 11pt;
 	background-color: rgba(255, 255, 255, 0.8);
 	overflow: hidden;
 }
 body {
 	background-color: #f4f4f4;
-	/*background-image: url("http://subtlepatterns2015.subtlepatterns.netdna-cdn.com/patterns/textured_paper.png");*/
 	background-repeat: repeat;
 }
 .graph-overlay {
@@ -78,6 +80,7 @@ div:hover>span.delete{
 	opacity: 0.8;
 }
 .node-overlay {
+	transition: 0.75s ease-in, box-shadow 0.1s ease-out, background-color 0.15s ease-out;
 	position: absolute;
 	width: 144px;
 	height: 72px;
@@ -91,7 +94,11 @@ div:hover>span.delete{
 	box-shadow: 0 0 1px 2.5px #FF4;
 }
 .cluster-overlay {
+	transition: 0.75s ease-in;
 	user-select: none;
+	font-family: sans-serif;
+	font-size: 11pt;
+	color: #333;
 	box-shadow: 0 0 0 1px rgba(102, 102, 102, 0.75);
 }
 .node polygon {

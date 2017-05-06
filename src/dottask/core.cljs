@@ -539,7 +539,7 @@
              height (- (.-clientY e) (.-top bounds))
              node-id (el->nodeid target)
             ]
-        (when (and (> width 30) (> height 30))
+        (when (and (> width 30) (> height 30) move-key)
           ((rerender! resize-node) node-id width height evt-type)
          )
         (when move-key
