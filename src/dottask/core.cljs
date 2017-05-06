@@ -139,6 +139,7 @@
     (str
       "\nsubgraph " (or cluster-id "root") "{\n"
       "label=\" \";\n "
+      "color=\"#666666\";\n "
       (clojure.string/join "\n" (map #(cluster->dot % nodes-by-cluster-id clusters-by-cluster-id) (map :id (get clusters-by-cluster-id cluster-id))))
       "\n"
       (clojure.string/join ";\n" (map :id (get nodes-by-cluster-id cluster-id)))
@@ -151,6 +152,7 @@
        "digraph G {\n"
        "dpi=72;"
        "node [label=\"\" shape=\"rect\"]\n"
+       "edge [color=\"#666666\"]\n"
        (cluster->dot nil nodes-by-cluster-id clusters-by-cluster-id)
         (->>
           (concat

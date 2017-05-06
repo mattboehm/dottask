@@ -82,16 +82,17 @@ div:hover>span.delete{
 	width: 144px;
 	height: 72px;
 	background-color: #F5F5F5;
-	border: 1px solid #444;
+	border: 1px solid #888;
 	border-radius: 2px;
 	user-select: none;
 	padding-top: 0px;
 }
 .node-overlay.selected {
-	box-shadow: 0 0 1px 3px #FF4;
+	box-shadow: 0 0 1px 2.5px #FF4;
 }
 .cluster-overlay {
 	user-select: none;
+	box-shadow: 0 0 0 1px rgba(102, 102, 102, 0.75);
 }
 .node polygon {
 	stroke: #ccc
