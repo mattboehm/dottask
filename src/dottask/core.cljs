@@ -1,16 +1,16 @@
 (ns dottask.core
-  (:require [reagent.core :as reagent]
-            [clojure.string :as string]
-            [clojure.set :as cset]
-            [cljs.reader :as reader]
-            [devtools.core :as devtools]
-            [goog.dom :as dom]
-            [goog.dom.classlist :as classlist]
-            [goog.events :as events]
-            [tubax.core :as tbx])
+  (:require
+    [reagent.core :as reagent]
+    [clojure.string :as string]
+    [clojure.set :as cset]
+    [cljs.reader :as reader]
+    [devtools.core :as devtools]
+    [goog.dom :as dom]
+    [goog.dom.classlist :as classlist]
+    [goog.events :as events]
+    [tubax.core :as tbx])
   (:import [goog.events EventType])
- )
-  (.initializeTouchEvents js/React true)
+)
 ;; Constants
   (def ppi 72); pixels per inch
   (def colors [
@@ -21,7 +21,7 @@
     {:name "green" :hex "#CCF5CC" :shortcut "g"}
     {:name "cyan" :hex "#CCF5F5" :shortcut "c"}
     {:name "blue" :hex "#CCCCF5" :shortcut "b"}
-               ])
+  ])
   (def color-keycode-lookup (zipmap (map :shortcut colors) colors))
 ;; Utils
   (defn debug [result]
@@ -93,6 +93,20 @@
       :height (or (:moving-height node) (:height node) 1.2)
       )
    )
+  (defn el->nodeid [el]
+    (let [node (dom/getAncestorByClass el "node-overlay")
+          node-id (when node (.getAttribute node "data-nodeid"))
+          ]
+      node-id
+     )
+   )
+  (defn el->clusterid [el]
+    (let [cluster (dom/getAncestorByClass el "cluster-overlay")
+          cluster-id (when cluster (.getAttribute cluster "data-clusterid"))
+          ]
+      cluster-id
+     )
+   )
 ;; State
   (defonce app-state (reagent/atom {
     :id-counter 6
@@ -118,29 +132,8 @@
   (defn load-hash [state]
     (merge state (reader/read-string (js/decodeURIComponent (apply str (rest (aget js/window "location" "hash"))))))
     )
-;; Tags (not finished yet)
-  ;edges: [[1 2][2 3][2 4]]
-  ;return: list of root nodes. []
-  (defn treeify
-    ([edges]
-      (let [
-            ; make sets of all things that appear on the left vs right side
-            [parents children] (apply map hash-set edges)
-            ; root nodes are ones that only appear on the LHS
-            roots (cset/difference parents children)
-            ]
-        (map #(treeify edges %) roots)
-        )
-     )
-    ([edges vertex]
-     {
-      :node vertex
-      :children (map #(treeify edges %) (map second (filter #(= (first %) vertex) edges)))
-      }
-     )
-    
-    )
-(defn cluster->dot [cluster-id nodes-by-cluster-id clusters-by-cluster-id]
+;; Make graph
+  (defn cluster->dot [cluster-id nodes-by-cluster-id clusters-by-cluster-id]
     (str
       "\nsubgraph " (or cluster-id "root") "{\n"
       "label=\" \";\n "
@@ -150,7 +143,6 @@
       "}\n"
     )
   )
-;; Make graph
   (defn to-dot [nodes deps clusters]
     (let [nodes-by-cluster-id (group-by :cluster-id nodes) clusters-by-cluster-id (group-by :cluster-id (vals clusters))]
       (str
@@ -493,20 +485,7 @@
         )
      )
    )
-  (defn el->nodeid [el]
-    (let [node (dom/getAncestorByClass el "node-overlay")
-          node-id (when node (.getAttribute node "data-nodeid"))
-          ]
-      node-id
-     )
-   )
-  (defn el->clusterid [el]
-    (let [cluster (dom/getAncestorByClass el "cluster-overlay")
-          cluster-id (when cluster (.getAttribute cluster "data-clusterid"))
-          ]
-      cluster-id
-     )
-   )
+;; Event Handlers
   (defn link-mouseup [src-node-id src-y shift-key]
     (fn [e]
       (let [
@@ -524,7 +503,7 @@
          )
        )
      )
-   )
+    )
   )
   (defn cluster-mouseup [src-cluster-id shift-key]
     (fn [e]
@@ -637,15 +616,16 @@
         [:button {:on-click #(show-help)} "Help"]
         (bulk-add-modal)
         [:div {:class "dotgraph"
-               ;TODO make not add node when dragging
-               ;:on-click #(when (and (.-target %) (not (dom/getAncestorByClass (.-target %) "node-overlay"))) (.log js/console "clk" (.-target %))((rerender! add-node) [] []))
+               :on-click #(when (= (.-nodeName (.-target %)) "polygon") ((rerender! add-node) [] []))
                }
           [:div {:class "graph-overlay"} 
+            ;Node overlays
             (map
               (fn [node]
                 [:div {:class (str "node-overlay" (when (= (:id node) (:selected-node-id state)) " selected")) 
                        :key (:id node)
                        :on-click #((rerender! select-node) (:id node))
+                       :on-double-click #((rerender! add-cluster) (prompt "Enter title for box:" "") [(:id node)])
                        :data-nodeid (:id node)
                        :on-mouse-down node-mousedown
                        :on-touch-start node-mousedown
@@ -703,14 +683,15 @@
                  ]
                )
               (:gnodes state))
+            ;Cluster overlays
             (map
               (fn [cluster]
                 (let [
-                      top (+ 1 (js/parseInt y-offset) (get-in cluster [:points :y :min]))
-                      left (+ 1 (js/parseInt x-offset) (get-in cluster [:points :x :min]))
-                      right (+ -1 (js/parseInt x-offset) (get-in cluster [:points :x :max]))
-                      width (- right left)
-                      ]
+                  top (+ 1 (js/parseInt y-offset) (get-in cluster [:points :y :min]))
+                  left (+ 1 (js/parseInt x-offset) (get-in cluster [:points :x :min]))
+                  right (+ -1 (js/parseInt x-offset) (get-in cluster [:points :x :max]))
+                  width (- right left)
+                  ]
                 [:div {:class "cluster-overlay"
                        :key (:id cluster)
                        :data-clusterid (:id cluster)
@@ -748,6 +729,7 @@
      )
    )
 ;; Init
+  (.initializeTouchEvents js/React true)
   ;handle key events
   (set! (.-onkeydown js/document) (fn [evt] 
     (.log js/console "KEYDOWN" evt (= (.-body js/document) (.-target evt)))
@@ -763,15 +745,15 @@
           ;e
           69 ((rerender! rename-prompt) selected)
           ;i
-          73 ((rerender! add-cluster) (prompt "Enter Title:" "") [selected]) 
+          73 ((rerender! add-cluster) (prompt "Enter title for box:" "") [selected]) 
           ;j
           74 ((rerender! select-next-node) 1)
           ;k
           75 ((rerender! select-next-node) -1)
           ;n
-          78 ((rerender! add-node) [] [] (prompt "Enter Title:" ""))
+          78 ((rerender! add-node) [] [] (prompt "Enter title for node:" ""))
           ;,/<
-          188 (when shift ((rerender! add-node) [] [selected] (prompt "Enter Title:" "")))
+          188 (when shift ((rerender! add-node) [] [selected] (prompt "Enter title for node:" "")))
           ;./>
           190 (when shift ((rerender! add-node) [selected] [] (prompt "Enter Title:" "")))
           ;-
@@ -784,8 +766,8 @@
 
   (defn render! []
     (reagent/render
-             [graph @app-state]
-             (.getElementById js/document "app")))
+      [graph @app-state]
+      (.getElementById js/document "app")))
 
   ;the first time the page loads, load the app state from the url hash
   (defonce on-page-load (do 
