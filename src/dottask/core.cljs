@@ -65,9 +65,11 @@
   (defn show-help []
     (js/alert (str 
       "Mouse:\n"                                      
+      "\tclick on blank space: add card\n"
       "\tclick on card text: change text\n"
+      "\tdouble-click on card: add box around card\n"
       "\tdrag from one card to another: link/unlink cards\n"
-      "\tdrag from one card to empty space above/below:"
+      "\tdrag from one card to empty space above/below:\n"
       "\t   create card linked to/from start card\n"
       "\t   hold down shift to 'split' the card into 2\n"
       "\tdrag between cards and box titles: box/unbox cards\n"
