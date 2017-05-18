@@ -18,13 +18,26 @@
 ;; Constants
   (def ppi 72); pixels per inch
   (def colors [
-    {:name "white" :hex "#F5F5F5" :shortcut "w"}
-    {:name "magenta" :hex "#F5CCF5" :shortcut "m"}
-    {:name "red" :hex "#F5CCCC" :shortcut "r"}
-    {:name "yellow" :hex "#F5F5CC" :shortcut "y"}
-    {:name "green" :hex "#CCF5CC" :shortcut "g"}
-    {:name "cyan" :hex "#CCF5F5" :shortcut "c"}
-    {:name "blue" :hex "#CCCCF5" :shortcut "b"}
+    {:name "white" :hex "#C9C9C9" :shortcut "w"}
+    ;After each of these shades, I've included a lighter and darker shade in case I want to change them in the future
+    {:name "red" :hex "#D1686E" :shortcut "r"}
+    ;{:name "#A7383D" :hex "#A7383D"}
+    ;{:name "#FBA7AB" :hex "#FBA7AB"}
+    {:name "orange" :hex "#D4B06A" :shortcut "o"}
+    ;{:name "#AA8339" :hex "#AA8339"}
+    ;{:name "#FFE2AA" :hex "#FFE2AA"}
+    {:name "yellow" :hex "#D4D36A" :shortcut "y"}
+    ;{:name "#AAA939" :hex "#AAA939"}
+    ;{:name "#FFFEAA" :hex "#FFFEAA"}
+    {:name "green" :hex "#5FAE57" :shortcut "g"}
+    ;{:name "#378B2E" :hex "#378B2E"}
+    ;{:name "#92D18B" :hex "#92D18B"}
+    {:name "blue" :hex "#4E638E" :shortcut "b"}
+    ;{:name "#2D4471" :hex "#2D4471"}
+    ;{:name "#7788AA" :hex "#7788AA"}
+    {:name "purple" :hex "#744B8E" :shortcut "v"}
+    ;{:name "#562A72" :hex "#562A72"}
+    ;{:name "#9675AB" :hex "#9675AB"}
   ])
   (def color-keycode-lookup (zipmap (map :shortcut colors) colors))
 ;; Utils
@@ -156,7 +169,7 @@
        "digraph G {\n"
        "dpi=72;"
        "node [label=\"\" shape=\"rect\"]\n"
-       "edge [color=\"#666666\"]\n"
+       "edge [color=\"#555555\"]\n"
        (cluster->dot nil nodes-by-cluster-id clusters-by-cluster-id)
         (->>
           (concat
@@ -646,26 +659,28 @@
                          :height (str (* (get-node-dim (:node node) :height) ppi) "px")
                          :background-color (:color (:node node) "")
                        }}
-                  [:span {:class "color-picker"}
-                    (map
-                      (fn [color] 
-                        [:span
-                         {:title (str (:name color) " (shortcut " (:shortcut color) ")")
-                          :class "color-swatch"
-                          :style {:background-color (:hex color)}
-                          :key (:name color)
-                          :on-click #((rerender! recolor-node) (:id node) (:hex color))
-                          }
-                         ]
-                       )
-                      colors)
-                   ]
-                  [:span
-                    { :class "delete"
-                      :title "Delete"
-                      :on-click #((rerender! delete-node) (:id node))
-                     }
-                    "×"
+                  [:div {:class "node-sidebar"}
+                    [:span
+                      { :class "delete"
+                        :title "Delete"
+                        :on-click #((rerender! delete-node) (:id node))
+                       }
+                      "×"
+                     ]
+                    [:span {:class "color-picker"}
+                      (map
+                        (fn [color] 
+                          [:span
+                           {:title (str (:name color) " (shortcut " (:shortcut color) ")")
+                            :class "color-swatch"
+                            :style {:background-color (:hex color)}
+                            :key (:name color)
+                            :on-click #((rerender! recolor-node) (:id node) (:hex color))
+                            }
+                           ]
+                         )
+                        colors)
+                     ]
                    ]
                   [:div
                     { :class "task-text"
