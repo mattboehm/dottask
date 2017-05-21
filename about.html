@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>About Dottask</title>
+	<style>
+		body {
+			background-color: #F4EFDC;
+		}
+		h1, h2 {
+			color: #3B3430;
+			text-align: center
+		}
+		p {
+			font-family: helvetica, sans-serif;
+			font-size: 14pt;
+			line-height: 20pt;
+			color: #3B3430;
+		}
+		.content {
+			max-width: 1200px;
+			margin-left: auto;
+			margin-right: auto;
+			background: rgba(255,255,255,0.7);
+			height: 100%;
+			padding: 25px;
+		}
+	</style>
+</head>
+<body>
+	<div class="content">
+		<!-- Github banner -->
+		<a href="https://github.com/mattboehm/dottask"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/e7bbb0521b397edbd5fe43e7f760759336b5e05f/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677265656e5f3030373230302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_green_007200.png"></a>
+		<h1>About Dottask</h1>
+		<p>Dottask is a tool for quickly making directed graphs. I originally created it for personal use and so that I could try learning Reagent and Clojurescript. While it's still more of a pet project than a mature tool, I've already personally found it to be quite useful and fun. Please feel free to <a href="./index.html">give it a try</a> and tell me what you think on <a href="https://twitter.com/mattboehm">Twitter</a>/GitHub.</p>
+		<h2>Why I am making Dottask</h2>
+		<p>I love to use graphs to help plan a new project or communicate concepts to others. They let me think visually and spatially about problems, while remaning structural enough to keep me focused on my goals.</p>
+		<p>Graphviz is my favorite tool for making graphs. I can create the nodes and edges via text entry or programmatically, and it automatically generates pretty great layouts. Thanks to viz.js, there are multiple web-based graphviz IDE's that let you instantly see graphs alongside their textual definition. However, having to edit this textual representation to change the graph can get a bit cumbersome, and I suspect that this is one of the reasons that more people don't use this fantastic tool.</p>
+		<p>When I needed to brainstorm or plan, I'd often catch myself drawing graphs on pencil and paper instead of my beloved Graphviz. Sure, this meant that I needed to lay things out myself and frequently reach for an eraser to make edits. However, not having to deal with the textual representation was still a huge reduction in cognitive overhead and completely changed how I thought.</p>
+		<p>Having seen the pros and cons of both of these approaches to graph-making, I wanted to make a tool that gave me the best of both worlds. Dottask uses Graphviz internally to provide the same great automated layout. However, instead of editing a text file, it lets you use a mouse, a touchscreen or vim-inspired keyboard shortcuts to work much more quickly. </p>
+	</div>
+</body>
+</html>
