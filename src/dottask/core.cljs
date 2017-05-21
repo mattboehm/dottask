@@ -95,7 +95,6 @@
   (defn show-help []
     (js/alert (str 
       "Mouse:\n"                                      
-      "\tclick on blank space: add card\n"
       "\tclick on card text: change text\n"
       "\tdouble-click on card: add box around card\n"
       "\tdrag from one card to another: link/unlink cards\n"
