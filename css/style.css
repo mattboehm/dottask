@@ -117,7 +117,8 @@ div:hover>span.collapse{
 	height: 72px;
 	background-color: #C9C9C9;
 	border: 1px solid #888;
-	border-radius: 2px;
+	border-radius: 8px;
+	box-shadow: inset 0 0 5px #666;
 	user-select: none;
 	padding-top: 0px;
 }
