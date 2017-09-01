@@ -8,6 +8,8 @@
     [goog.dom :as dom]
     [goog.dom.classlist :as classlist]
     [goog.events :as events]
+    [goog.html.SafeHtml :as shtml]
+    [goog.string :as gstring]
     [historian.core :as hist]
     [tubax.core :as tbx])
   (:require-macros
@@ -64,6 +66,12 @@
         [k (func v)]
        )
      )
+   )
+  (defn hesc [text]
+    (.getTypedStringValue (shtml/htmlEscape text))
+   )
+  (defn esc [text]
+    (gstring/escapeString (str text))
    )
   ;take a map of keys to lists of vals and invert to a map of each val to its key
   (defn invert-list-map [hmap]
@@ -156,6 +164,7 @@
     :selected-node-id nil
     :toggle-link-node-id nil
     :deps [["node1" "node2"] ["node1" "node3"] ["node2" "node4"] ["node3" "node4"] ["node4" "node5"]]
+    :dot nil ; graphviz representation
     :svg ""
     :bulk-add-modal-visible? false
   }))
@@ -201,24 +210,30 @@
        )
      )
    )
-  (defn dot-node [node]
-    (str (:id node) "[height=\"" (get-node-dim node :height) "\" width=\"" (get-node-dim node :width) "\"];")
+  (defn dot-node
+    ([node] (dot-node node ""))
+    ([node label]
+      (str (:id node) "[label=\"" (esc label) "\" height=\"" (get-node-dim node :height) "\" width=\"" (get-node-dim node :width) "\"];")
+     )
    )
-  (defn cluster->dot [cluster-id clusters nodes-by-cluster-id clusters-by-cluster-id hidden-ids]
-    (if (get-in clusters [cluster-id :collapsed])
-      (dot-node {:id cluster-id})
+  (defn cluster->dot [cluster-id clusters nodes-by-cluster-id clusters-by-cluster-id hidden-ids labels?]
+    (let [cluster (get clusters cluster-id)
+          label (if labels? (:text cluster) " ")]
+    (if (:collapsed cluster)
+      (dot-node {:id cluster-id} label)
       (str
         "\nsubgraph " (or cluster-id "root") "{\n"
-        "label=\" \";\n "
+        "label=\"" (esc label) "\";\n "
         "color=\"#666666\";\n "
-        (clojure.string/join "\n" (map #(cluster->dot % clusters nodes-by-cluster-id clusters-by-cluster-id hidden-ids) (map :id (get clusters-by-cluster-id cluster-id))))
+        (clojure.string/join "\n" (map #(cluster->dot % clusters nodes-by-cluster-id clusters-by-cluster-id hidden-ids labels?) (map :id (get clusters-by-cluster-id cluster-id))))
         "\n"
         (clojure.string/join ";\n" (map :id (get nodes-by-cluster-id cluster-id)))
         "}\n"
        )
      )
+    )
    )
-  (defn to-dot [nodes deps clusters]
+  (defn to-dot [nodes deps clusters labels?]
     (let [
           nodes-by-cluster-id (group-by :cluster-id nodes)
           clusters-by-cluster-id (group-by :cluster-id (vals clusters))
@@ -230,10 +245,10 @@
        "dpi=72;"
        "node [label=\"\" shape=\"rect\"]\n"
        "edge [color=\"#555555\"]\n"
-       (cluster->dot nil clusters nodes-by-cluster-id clusters-by-cluster-id hidden-ids)
+       (cluster->dot nil clusters nodes-by-cluster-id clusters-by-cluster-id hidden-ids labels?)
         (->>
           (concat
-            (map dot-node (remove #(contains? hidden-id-set (:id %)) nodes))
+            (map #(dot-node % (if labels? (:text %) "")) (remove #(contains? hidden-id-set (:id %)) nodes))
             (map #(str (first %) "->" (second %) ";") (fix-deps deps hidden-ids))
           )
           (interpose "\n")
@@ -325,7 +340,7 @@
   ;Whenever you change the nodes, deps, etc, you need to re-generate the graph
   (defn update-state [state]
     (let [
-          dot (to-dot (:nodes state) (:deps state) (:clusters state))
+          dot (to-dot (:nodes state) (:deps state) (:clusters state) false)
           same-graph (= dot (:dot state));if the dot is the same, don't need to re-calc svg/gdata
           svg (if same-graph (:svg state) (dot->svg dot))
           gdata
@@ -706,6 +721,7 @@
         [:button {:on-click #(save-hash @app-state)} "Save"]
         [:button {:on-click hist/undo!} "Undo"]
         [:button {:on-click hist/redo!} "Redo"]
+        [:button {:on-click #(let [w (js/window.open)] (.write (.-document w) (str "<pre>" (hesc (to-dot (:nodes @app-state) (:deps @app-state) (:clusters @app-state) true)) "</pre>")))} "Show dot"]
         [:button {:on-click #(show-help)} "Help"]
         (bulk-add-modal)
         [:div {:class "dotgraph"
