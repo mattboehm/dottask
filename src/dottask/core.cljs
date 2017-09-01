@@ -42,6 +42,32 @@
     ;{:name "#9675AB" :hex "#9675AB"}
   ])
   (def color-keycode-lookup (zipmap (map :shortcut colors) colors))
+  (def directions {
+    :up {
+      :label "up"
+      :dot "BT"
+      :coord :y
+      :before >
+     }
+    :down {
+      :label "down"
+      :dot "TB"
+      :coord :y
+      :before <
+     }
+    :left {
+      :label "left"
+      :dot "RL"
+      :coord :x
+      :before >
+     }
+    :right {
+      :label "right"
+      :dot "LR"
+      :coord :x
+      :before <
+     }
+   })
 ;; Utils
   (defn debug [result]
     (.log js/console "DEBUG" result)
@@ -72,6 +98,19 @@
    )
   (defn esc [text]
     (gstring/escapeString (str text))
+   )
+  ; get mouse coordinates of event
+  (defn coords [evt]
+    {
+      :x (.-clientX evt)
+      :y (.-clientY evt)
+     }
+   )
+  (defn compare-coords [this other direction] 
+    (let [coord (:coord direction)
+          before (:before direction)]
+      (if (before (coord this) (coord other)) :before :after)
+     )
    )
   ;take a map of keys to lists of vals and invert to a map of each val to its key
   (defn invert-list-map [hmap]
@@ -160,6 +199,7 @@
       { :id "node4" :text "???" }
       { :id "node5" :text "Profit!" }
     ]
+    :direction :down
     :clusters {}
     :selected-node-id nil
     :toggle-link-node-id nil
@@ -233,7 +273,7 @@
      )
     )
    )
-  (defn to-dot [nodes deps clusters labels?]
+  (defn to-dot [nodes deps clusters direction labels?]
     (let [
           nodes-by-cluster-id (group-by :cluster-id nodes)
           clusters-by-cluster-id (group-by :cluster-id (vals clusters))
@@ -242,7 +282,8 @@
         ]
       (str
        "digraph G {\n"
-       "dpi=72;"
+       "dpi=72;\n"
+       "rankdir=" (:dot direction) ";\n"
        "node [label=\"\" shape=\"rect\"]\n"
        "edge [color=\"#555555\"]\n"
        (cluster->dot nil clusters nodes-by-cluster-id clusters-by-cluster-id hidden-ids labels?)
@@ -340,7 +381,7 @@
   ;Whenever you change the nodes, deps, etc, you need to re-generate the graph
   (defn update-state [state]
     (let [
-          dot (to-dot (:nodes state) (:deps state) (:clusters state) false)
+          dot (to-dot (:nodes state) (:deps state) (:clusters state) ((:direction state) directions) false)
           same-graph (= dot (:dot state));if the dot is the same, don't need to re-calc svg/gdata
           svg (if same-graph (:svg state) (dot->svg dot))
           gdata
@@ -367,6 +408,9 @@
      )
    )
 ;;State changers
+  (defn set-direction [state dirkey]
+    (assoc state :direction dirkey)
+    )
   ; util: pass the node with id=node-id through func
   (defn update-node [state node-id func]
     (assoc state :nodes
@@ -591,11 +635,12 @@
      )
    )
 ;; Event Handlers
-  (defn link-mouseup [src-node-id src-y shift-key]
+  (defn link-mouseup [src-node-id src-coords direction shift-key]
     (fn [e]
       (let [
             node-id (el->nodeid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
             cluster-id (el->clusterid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
+            tgt-coords (coords e)
             ]
         (cond 
           ;On a node that's not a collapsed cluster. link to it.
@@ -604,9 +649,9 @@
           ;On a cluster. add/remove node from cluster
           cluster-id
             ((rerender! toggle-node-cluster) src-node-id cluster-id) 
-          ;On blank space. Add a new node before/after this one based on deltaY
+          ;On blank space. Add a new node before/after if the drag target is before/after the source
           :else
-            ((rerender! add-or-split-node) src-node-id (if (< (.-clientY e) src-y) :before :after) shift-key)
+            ((rerender! add-or-split-node) src-node-id (compare-coords tgt-coords src-coords (direction directions)) shift-key)
          )
        )
      )
@@ -650,14 +695,14 @@
        )
      )
    )
-  (defn node-mousedown [e]
+  (defn node-mousedown [e direction]
     (if (classlist/contains (.-target e) "node-resize")
       (do 
         (let [move-key (events/listen js/window EventType.MOUSEMOVE (resize-mouse (.-target e) :mousemove nil))]
           (events/listenOnce js/window EventType.MOUSEUP (resize-mouse (.-target e) :mouseup move-key))
          )
        )
-      (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (link-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (.-clientY e) (.-shiftKey e)))
+      (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (link-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (coords e) direction (.-shiftKey e)))
      )
    )
   (defn cluster-mousedown [e]
@@ -716,12 +761,15 @@
           ]
       [:div
         {:on-key-press #(.log js/console %)}
+        "Arrow Direction: "
+        [:select {:value (:label ((:direction state) directions)) :on-change #((rerender! set-direction) (keyword (-> % .-target .-value)))} (map (fn [[dirkey dir]] [:option {:key dirkey :value dirkey :on-click #((rerender! set-direction) dirkey)} (:label dir)]) directions)]
+        [:br]
         [:button {:on-click #((rerender! add-node) [] [])} "Add card"]
         [:button {:on-click (toggler app-state :bulk-add-modal-visible?)} "Bulk add"]
         [:button {:on-click #(save-hash @app-state)} "Save"]
         [:button {:on-click hist/undo!} "Undo"]
         [:button {:on-click hist/redo!} "Redo"]
-        [:button {:on-click #(let [w (js/window.open)] (.write (.-document w) (str "<pre>" (hesc (to-dot (:nodes @app-state) (:deps @app-state) (:clusters @app-state) true)) "</pre>")))} "Show dot"]
+        [:button {:on-click #(let [w (js/window.open)] (.write (.-document w) (str "<pre>" (hesc (to-dot (:nodes @app-state) (:deps @app-state) (:clusters @app-state) ((:direction @app-state) directions) true)) "</pre>")))} "Show dot"]
         [:button {:on-click #(show-help)} "Help"]
         (bulk-add-modal)
         [:div {:class "dotgraph"
@@ -736,8 +784,8 @@
                        :on-click (if (:cluster node) #((rerender! (fn [state] (assoc-in state [:clusters (:id node) :collapsed] false )))) #(.log js/console "NOCLUSTER" node)    )
                        :on-double-click #((rerender! add-cluster) (prompt "Enter title for box:" "") [(:id node)])
                        :data-nodeid (:id node)
-                       :on-mouse-down (when (:node node) node-mousedown)
-                       :on-touch-start (when (:node node) node-mousedown)
+                       :on-mouse-down (when (:node node) #(node-mousedown % (:direction state)))
+                       :on-touch-start (when (:node node) #(node-mousedown % (:direction state)))
                        :style {
                          :left (str (+ (js/parseInt x-offset) (get-in node [:points :x :min])) "px")
                          :top (str (+ (js/parseInt y-offset) (get-in node [:points :y :min])) "px")
