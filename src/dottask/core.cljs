@@ -600,13 +600,15 @@
   ;new-node-pos is :before or :after
   (defn split-node [state node-id new-node-pos]
     (let [
+          nodes (:nodes state)
+          node (get-node nodes node-id)
           new-node-id (str "node" (:id-counter state))
-          new_node {:id new-node-id :text ""}
-          new_nodes (conj (:nodes state) new_node)
+          new_node {:id new-node-id :cluster-id (:cluster-id node) :text ""}
+          new_nodes (conj nodes new_node)
           new_deps (move-deps (:deps state) node-id new-node-id new-node-pos)
           final_deps (conj new_deps (if (= new-node-pos :before) [new-node-id node-id] [node-id new-node-id]))
           ]
-        (assoc state :nodes new_nodes :deps final_deps :id-counter (inc (:id-counter state)))
+          (assoc state :nodes new_nodes :deps final_deps :id-counter (inc (:id-counter state)))
       ))
   (defn add-or-split-node [state node-id position split?]
     (if split?
