@@ -76,9 +76,12 @@
   (defn prompt [message val]
     (js/prompt message val)
     )
+  (defn toggle [dict key]
+    (assoc dict key (not (key dict)))
+    )
   (defn toggler [state key]
     (fn []
-      (swap! state assoc key (not (key @state)))
+      (swap! state toggle key)
      )
    )
   (defn extent [numbers] 
@@ -489,16 +492,24 @@
       (add-node state befores afters "")
      )
     ( [state befores afters text]
+      (add-node state befores afters text false)
+     )
+    ( [state befores afters text return-id?]
       (let [
-            new_node {:id (str "node" (:id-counter state)) :text text}
+            new_node_id (str "node" (:id-counter state))
+            new_node {:id new_node_id :text text}
             new_nodes (conj (:nodes state) new_node)
             all_deps (reduce into (:deps state) [
                        (map #(vector % (:id new_node)) befores)
                        (map #(vector (:id new_node) %) afters)
                                       ]
                              )
+            new_state (assoc state :nodes new_nodes :deps all_deps :id-counter (inc (:id-counter state)))
             ]
-        (assoc state :nodes new_nodes :deps all_deps :id-counter (inc (:id-counter state)))
+        (if return-id?
+          [new_state  new_node_id]
+          new_state
+         )
        )
      )
    )
@@ -528,11 +539,19 @@
       (add-cluster state (prompt "Enter a name for the box" "") node-ids)
      )
     ([state text node-ids]
-      (let [cluster-id (str "cluster_" (:id-counter state))]
-        (reduce
-          #(recluster-node %1 %2 cluster-id)
-          (assoc state :clusters (assoc (:clusters state) cluster-id {:id cluster-id :text text :collapsed false}) :id-counter (inc (:id-counter state)))
-          node-ids
+      (add-cluster state text node-ids false)
+     )
+    ([state text node-ids return-id?]
+      (let [cluster-id (str "cluster_" (:id-counter state))
+            new-state (reduce
+                        #(recluster-node %1 %2 cluster-id)
+                        (assoc state :clusters (assoc (:clusters state) cluster-id {:id cluster-id :text text :collapsed false}) :id-counter (inc (:id-counter state)))
+                        node-ids
+                       )
+            ]
+        (if return-id?
+          [new-state cluster-id]
+          new-state
          )
        )
      )
@@ -734,22 +753,114 @@
            :rows 20
            :value @value
            :on-change #(reset! value (-> % .-target .-value))}])
+  (defn parse-line [index line]
+    (let [clean (clojure.string/triml line)
+          indentation (- (count line) (count clean))
+          ]
+      {
+       :idx index
+       :orig line
+       :clean clean
+       :indent indentation
+       }
+    ))
+  (defn add-parents ; go through a seq of parsed lines and for each indented line, add a :parent key with the idx of their parent
+    ;the parent is the closest line above the current line that is indented at a lower level.
+    ([parsed-lines]
+      (let [line (first parsed-lines)]
+        (add-parents (rest parsed-lines) {(:indent line) (:idx line)} [line])))
+    ([parsed-lines indent-parents result]
+      (if (empty? parsed-lines)
+        result
+        (let [line (first parsed-lines)
+              indent (:indent line)
+            ; get the highest index with a lower indentation
+              parent (->>
+                         indent-parents
+                         (filter (fn [[k v]] (<  k indent)))
+                         (map second)
+                         (apply max)
+                        )
+              ]
+          (add-parents
+            (rest parsed-lines)
+            (assoc indent-parents indent (:idx line))
+            (conj result (assoc line :parent parent)
+           ))))))
+  (defn mark-parents [parsed]
+    (let [pars (set (map :parent parsed)) ]
+      (map (fn [line] (assoc line :is-parent? (contains? pars (:idx line)))) parsed)
+     )
+   )
+  (defn parse-bulk-add [text]
+    (let [
+          lines (remove empty? (clojure.string/split-lines text))
+          parsed (map-indexed parse-line lines)
+          ]
+      (mark-parents (add-parents parsed))
+    )
+    )
+  ;XXX this algorithm relies on parents appearing before all their children
+  ; go through all the parsed lines and add all new nodes/links/clusters to the graph depending on the mode:
+  ; "ignore": add all lines as nodes and ignore indentation
+  ; "cluster": lines at higher indentation become clusters that contain their children
+  ; "link": lines at higher indentation are linked to all their direct children
+  (defn add-lines
+    ([state lines mode] (add-lines state lines mode {}))
+    ([state lines mode id-lookup]
+     ; id-lookup maps lines' :idx to the ID's of the nodes/clusters created so we can use that ID for linking/clustering of the children
+      (let [
+            line (first lines)
+            ]
+        (if (nil? line) ;if we've gone through all the lines, return
+          state
+          (let [
+            text (:clean line)
+            parent-id (get id-lookup (:parent line))
+            [new-state new-id] (if (and (= mode "cluster") (:is-parent? line))
+                                 (add-cluster state text [] true) ;in cluster mode, parent lines are clusters
+                                 (add-node state [] [] text true)) ;in all other cases, the current line becomes a node
+            final-state (cond ;if this node has a parent, add them to that parent cluster or link to the parent node
+                          (and (= mode "cluster") parent-id)
+                            (recluster-node new-state new-id parent-id)
+                          (and (= mode "link") parent-id)
+                            (toggle-dep new-state [parent-id new-id])
+                          :else
+                            new-state
+                          )
+              ]
+            (add-lines final-state (rest lines) mode (assoc id-lookup (:idx line) new-id))
+           )
+         )
+       )
+     )
+   )
   (defn bulk-add-modal []
-    (let [bulk-text (reagent/atom "")]
+    (let [bulk-text (reagent/atom ""); the text in the textbox
+          mode (reagent/atom "")]; how to handle indentation. See parse-bulk-add for a description of the modes
       (keyed-modal app-state :bulk-add-modal-visible? {:class "bulk-modal"}
         [:div
           [:div {:class "modal-title"} "Bulk Add"]
           [:div "Add a line of text for each node you want created"]
+          [:select {:on-change #(reset! mode (-> % .-target .-value))}
+            [:option {:value "ignore"} "ignore"]
+            [:option {:value "link"} "link"]
+            [:option {:value "cluster"} "cluster"]
+           ]
           [textarea bulk-text]
           [:div {:class "modal-buttons"}
             [:button
              {
                :style {:display "inline-block" :float "right"}
                :on-click #(
-                 let [lines (remove empty? (clojure.string/split-lines @bulk-text))]
-                 (.log js/console "fooooom" @bulk-text lines)
-                 ((rerender! add-nodes) lines)
-                 ((toggler app-state :bulk-add-modal-visible?))
+                 let [
+                      ;lines (remove empty? (clojure.string/split-lines @bulk-text))
+                      parsed (parse-bulk-add @bulk-text)
+                      ]
+                 ((rerender! (fn [state] (->
+                                           state
+                                           (add-lines parsed @mode)
+                                           (toggle :bulk-add-modal-visible?)))))
               )}
              "Add nodes"]
            ]
@@ -904,7 +1015,6 @@
   (.initializeTouchEvents js/React true)
   ;handle key events
   (set! (.-onkeydown js/document) (fn [evt] 
-    (.log js/console "KEYDOWN" evt (= (.-body js/document) (.-target evt)))
     (let [shift (.-shiftKey evt);whether shift key is being held down
           selected (:selected-node-id @app-state)
           keycode (.-which evt)
