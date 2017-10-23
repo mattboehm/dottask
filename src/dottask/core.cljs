@@ -209,6 +209,10 @@
     :deps [["node1" "node2"] ["node1" "node3"] ["node2" "node4"] ["node3" "node4"] ["node4" "node5"]]
     :dot nil ; graphviz representation
     :svg ""
+  }))
+  ; Holds the state of the current ui (whether popups are visible, etc)
+  ; This is separate from the app-state because we don't want undo/redo to toggle popups, only the graph state
+  (defonce ui-state (reagent/atom {
     :bulk-add-modal-visible? false
   }))
 ;; Save/Load state
@@ -838,7 +842,7 @@
   (defn bulk-add-modal []
     (let [bulk-text (reagent/atom ""); the text in the textbox
           mode (reagent/atom "")]; how to handle indentation. See parse-bulk-add for a description of the modes
-      (keyed-modal app-state :bulk-add-modal-visible? {:class "bulk-modal"}
+      (keyed-modal ui-state :bulk-add-modal-visible? {:class "bulk-modal"}
         [:div
           [:div {:class "modal-title"} "Bulk Add"]
           [:div "Add a line of text for each node you want created"]
@@ -857,10 +861,11 @@
                       ;lines (remove empty? (clojure.string/split-lines @bulk-text))
                       parsed (parse-bulk-add @bulk-text)
                       ]
+                 ((toggler ui-state :bulk-add-modal-visible?))
                  ((rerender! (fn [state] (->
                                            state
                                            (add-lines parsed @mode)
-                                           (toggle :bulk-add-modal-visible?)))))
+                                           ))))
               )}
              "Add nodes"]
            ]
@@ -878,7 +883,7 @@
         [:select {:value (:label ((:direction state) directions)) :on-change #((rerender! set-direction) (keyword (-> % .-target .-value)))} (map (fn [[dirkey dir]] [:option {:key dirkey :value dirkey :on-click #((rerender! set-direction) dirkey)} (:label dir)]) directions)]
         [:br]
         [:button {:on-click #((rerender! add-node) [] [])} "Add card"]
-        [:button {:on-click (toggler app-state :bulk-add-modal-visible?)} "Bulk add"]
+        [:button {:on-click (toggler ui-state :bulk-add-modal-visible?)} "Bulk add"]
         [:button {:on-click #(save-hash @app-state)} "Save"]
         [:button {:on-click hist/undo!} "Undo"]
         [:button {:on-click hist/redo!} "Redo"]
@@ -1064,5 +1069,6 @@
 
   ;whenever the app state changes, render the whole page
   (add-watch app-state :on-change (fn [_ _ _ _] (render!)))
+  (add-watch ui-state :on-change (fn [_ _ _ _] (render!)))
   (swap! app-state update-state)
   (hist/record! app-state :app-state)
