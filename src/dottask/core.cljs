@@ -491,6 +491,9 @@
   (defn delete-nodes [state ids]
     (reduce delete-node state ids)
    )
+  (defn delete-all [state]
+    (assoc state :nodes [] :deps [] :clusters {} :selected-node-id nil)
+   )
   (defn add-node
     ( [state befores afters]
       (add-node state befores afters "")
@@ -527,9 +530,9 @@
       :else (inside-cluster? clusters (get clusters (:cluster-id child)) parent-id)
      )
    )
-  (defn toggle-cluster-nesting[state child-id parent-id]
+  (defn toggle-cluster-nesting [state child-id parent-id]
     (if (inside-cluster? (:clusters state) (get-in state [:clusters parent-id]) child-id)
-      state
+      state ;parent is inside the child; do nothing and return
       (assoc-in state [:clusters child-id :cluster-id]
         (if (= parent-id (get-in state [:clusters child-id :cluster-id]))
           nil
@@ -826,7 +829,10 @@
                                  (add-node state [] [] text true)) ;in all other cases, the current line becomes a node
             final-state (cond ;if this node has a parent, add them to that parent cluster or link to the parent node
                           (and (= mode "cluster") parent-id)
-                            (recluster-node new-state new-id parent-id)
+                            (if (:is-parent? line)
+                              (toggle-cluster-nesting new-state new-id parent-id)
+                              (recluster-node new-state new-id parent-id)
+                             )
                           (and (= mode "link") parent-id)
                             (toggle-dep new-state [parent-id new-id])
                           :else
@@ -884,6 +890,7 @@
         [:br]
         [:button {:on-click #((rerender! add-node) [] [])} "Add card"]
         [:button {:on-click (toggler ui-state :bulk-add-modal-visible?)} "Bulk add"]
+        [:button {:on-click #((rerender! delete-all))} "Delete all"]
         [:button {:on-click #(save-hash @app-state)} "Save"]
         [:button {:on-click hist/undo!} "Undo"]
         [:button {:on-click hist/redo!} "Redo"]
