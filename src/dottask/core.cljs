@@ -260,7 +260,7 @@
   (defn dot-node
     ([node] (dot-node node ""))
     ([node label]
-      (str (:id node) "[label=\"" (esc label) "\" height=\"" (get-node-dim node :height) "\" width=\"" (get-node-dim node :width) "\"];")
+      (str (:id node) "[label=\"" (esc label) "\" color=\"" (or (:color node) "#666666")  "\" height=\"" (get-node-dim node :height) "\" width=\"" (get-node-dim node :width) "\"];")
      )
    )
   (defn cluster->dot [cluster-id clusters nodes-by-cluster-id clusters-by-cluster-id hidden-ids labels?]
@@ -291,7 +291,7 @@
        "digraph G {\n"
        "dpi=72;\n"
        "rankdir=" (:dot direction) ";\n"
-       "node [label=\"\" shape=\"rect\"]\n"
+       "node [label=\"\" shape=\"rect\" penwidth=\"4\"]\n"
        "edge [color=\"#555555\"]\n"
        (cluster->dot nil clusters nodes-by-cluster-id clusters-by-cluster-id hidden-ids labels?)
         (->>
