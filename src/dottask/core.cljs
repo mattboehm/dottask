@@ -131,23 +131,13 @@
   (defn get-node [nodes id]
     (first (filter #(= id (:id %)) nodes))
    )
-  ;removes an item if it's in the list, adds it if it's not
-  (defn toggle-item [coll item]
-    (let [ len (count coll)
-           new_coll (remove #(= % item) coll)
-          ]
-      (if (= len (count new_coll))
-        (conj new_coll item)
-        new_coll
-       )
-     )
-   )
   (defn show-help []
     (js/alert (str 
       "Mouse:\n"                                      
       "\tclick on card text: change text\n"
       "\tdouble-click on card: add box around card\n"
       "\tdrag from one card to another: link/unlink cards\n"
+      "\t   hold down shift to set/change the label for the link\n"
       "\tdrag from one card to empty space above/below:\n"
       "\t   create card linked to/from start card\n"
       "\t   hold down shift to 'split' the card into 2\n"
@@ -291,7 +281,7 @@
         ]
       (str
        "digraph G {\n"
-       "dpi=72;\n"
+       "dpi=" ppi ";\n"
        "rankdir=" (:dot direction) ";\n"
        "node [label=\"\" shape=\"rect\" penwidth=\"4\"]\n"
        "edge [color=\"#555555\"]\n"
@@ -299,7 +289,7 @@
         (->>
           (concat
             (map #(dot-node % (if labels? (:text %) "")) (remove #(contains? hidden-id-set (:id %)) nodes))
-            (map #(str (first %) "->" (second %) ";") (fix-deps deps hidden-ids))
+            (map #(str (first %) "->" (second %) "[label=\"" (nth % 2 nil) "\"];") (fix-deps deps hidden-ids))
           )
           (interpose "\n")
           (apply str)
@@ -646,18 +636,35 @@
      )
    )
   (defn toggle-dep [state dep]
-    (update-in state [:deps] #(vec (toggle-item % dep)))
+    (let [found (first (filter #(= (take 2 %) (take 2 dep)) (:deps state)))]
+      (update-in state [:deps]
+        (fn [deps]
+          (if (nth dep 2 nil)
+            ;The dep has a label, so replace any existing src-tgt dep with this labeled one
+            (->
+              (remove #(= % found) deps)
+              (conj dep)
+              )
+            ;No label. Remove the dep if it exists, else add it
+            (if found
+              (remove #(= % found) deps)
+              (conj deps dep)
+             )
+           )
+         )
+       )
+     )
    )
   (defn toggle-dep-clear [state dep]
     (assoc (toggle-dep state dep) :toggle-link-node-id nil)
     )
-  (defn on-toggle-dep-click [state node-id]
+  (defn on-toggle-dep-click [state node-id label]
     (let [last-clicked-id (:toggle-link-node-id state)]
       (if (nil? last-clicked-id)
         (assoc state :toggle-link-node-id node-id)
         (if (= last-clicked-id node-id)
           (assoc state :toggle-link-node-id nil)
-          (toggle-dep-clear state [last-clicked-id node-id])
+          (toggle-dep-clear state [last-clicked-id node-id label])
          )
         )
      )
@@ -673,7 +680,7 @@
         (cond 
           ;On a node that's not a collapsed cluster. link to it.
           (and node-id (not= node-id cluster-id)) 
-            (when (not= node-id src-node-id) ((rerender! toggle-dep-clear) [src-node-id node-id]))
+            (when (not= node-id src-node-id) ((rerender! toggle-dep-clear) [src-node-id node-id (if shift-key (prompt "Enter link text:" "") nil)]))
           ;On a cluster. add/remove node from cluster
           cluster-id
             ((rerender! toggle-node-cluster) src-node-id cluster-id) 
@@ -910,7 +917,7 @@
         [:button {:on-click #(show-help)} "Help"]
         (bulk-add-modal)
         [:div {:class "dotgraph"
-               :on-click #(when (= (.-nodeName (.-target %)) "polygon") ((rerender! add-node) [] []))
+               ;:on-click #(when (= (.-nodeName (.-target %)) "polygon") ((rerender! add-node) [] []))
                }
           [:div {:class "graph-overlay"} 
             ;Resize overlay
@@ -1089,7 +1096,7 @@
           ;./>
           190 (when shift ((rerender! add-node) [selected] [] (prompt "Enter Title:" "")))
           ;-
-          189 ((rerender! on-toggle-dep-click) selected)
+          189 ((rerender! on-toggle-dep-click) selected (if shift (prompt "Enter link text:" "") nil))
           ""
          )
         (when color ((rerender! recolor-node) selected (:hex color)))
