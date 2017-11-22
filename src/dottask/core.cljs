@@ -202,7 +202,7 @@
   }))
   ; Holds the state of the current ui (whether popups are visible, etc)
   ; This is separate from the app-state because we don't want undo/redo to toggle popups, only the graph state
-  (def ui-state (reagent/atom {
+  (defonce ui-state (reagent/atom {
     :bulk-add-modal-visible? false
     :resize-points nil
     ;:resize-points {:x {:min 162, :max 326}, :y {:min -452, :max -316}}
@@ -867,35 +867,37 @@
   (defn bulk-add-modal []
     (let [bulk-text (reagent/atom ""); the text in the textbox
           mode (reagent/atom "")]; how to handle indentation. See parse-bulk-add for a description of the modes
-      (keyed-modal ui-state :bulk-add-modal-visible? {:class "bulk-modal"}
-        [:div
-          [:div {:class "modal-title"} "Bulk Add"]
-          [:div "Add a line of text for each node you want created"]
-          [:select {:on-change #(reset! mode (-> % .-target .-value))}
-            [:option {:value "ignore"} "ignore"]
-            [:option {:value "link"} "link"]
-            [:option {:value "cluster"} "cluster"]
+      (fn []
+        (keyed-modal ui-state :bulk-add-modal-visible? {:class "bulk-modal"}
+          [:div
+            [:div {:class "modal-title"} "Bulk Add"]
+            [:div "Add a line of text for each node you want created"]
+            [:select {:value @mode :on-change #(reset! mode (-> % .-target .-value))}
+              [:option {:value "ignore"} "ignore"]
+              [:option {:value "link"} "link"]
+              [:option {:value "cluster"} "cluster"]
+             ]
+            [textarea bulk-text]
+            [:div {:class "modal-buttons"}
+              [:button
+               {
+                 :style {:display "inline-block" :float "right"}
+                 :on-click #(
+                   let [
+                        ;lines (remove empty? (clojure.string/split-lines @bulk-text))
+                        parsed (parse-bulk-add @bulk-text)
+                        ]
+                   ((toggler ui-state :bulk-add-modal-visible?))
+                   ((rerender! (fn [state] (->
+                                             state
+                                             (add-lines parsed @mode)
+                                             ))))
+                )}
+               "Add nodes"]
+             ]
            ]
-          [textarea bulk-text]
-          [:div {:class "modal-buttons"}
-            [:button
-             {
-               :style {:display "inline-block" :float "right"}
-               :on-click #(
-                 let [
-                      ;lines (remove empty? (clojure.string/split-lines @bulk-text))
-                      parsed (parse-bulk-add @bulk-text)
-                      ]
-                 ((toggler ui-state :bulk-add-modal-visible?))
-                 ((rerender! (fn [state] (->
-                                           state
-                                           (add-lines parsed @mode)
-                                           ))))
-              )}
-             "Add nodes"]
-           ]
-         ]
-       )
+         )
+        )
      )
    )
   (defn graph [state]
@@ -915,7 +917,7 @@
         [:button {:on-click hist/redo!} "Redo"]
         [:button {:on-click #(let [w (js/window.open)] (.write (.-document w) (str "<pre>" (hesc (to-dot (:nodes @app-state) (:deps @app-state) (:clusters @app-state) ((:direction @app-state) directions) true)) "</pre>")))} "Show dot"]
         [:button {:on-click #(show-help)} "Help"]
-        (bulk-add-modal)
+        [bulk-add-modal]
         [:div {:class "dotgraph"
                ;:on-click #(when (= (.-nodeName (.-target %)) "polygon") ((rerender! add-node) [] []))
                }
