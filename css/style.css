@@ -122,6 +122,12 @@ div:hover>span.collapse{
 	user-select: none;
 	padding-top: 0px;
 }
+.resize-overlay {
+	position: absolute;
+	border: 2px dashed #111;
+	box-shadow: inset 0 0 0px 5000px rgba(255, 255, 255, 0.7), 0 0 0px 5000px rgba(255, 255, 255, 0.7);
+	z-index: 999;
+}
 .node-overlay.selected {
 	box-shadow: 0 0 1px 2.5px #FF4;
 }

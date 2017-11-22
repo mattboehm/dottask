@@ -170,8 +170,8 @@
    )
   (defn get-node-dim [node dim]
     (case dim
-      :width (or (:moving-width node) (:width node) 2)
-      :height (or (:moving-height node) (:height node) 1.2)
+      :width (or (:width node) 2)
+      :height (or (:height node) 1.2)
       )
    )
   (defn el->nodeid [el]
@@ -212,8 +212,10 @@
   }))
   ; Holds the state of the current ui (whether popups are visible, etc)
   ; This is separate from the app-state because we don't want undo/redo to toggle popups, only the graph state
-  (defonce ui-state (reagent/atom {
+  (def ui-state (reagent/atom {
     :bulk-add-modal-visible? false
+    :resize-points nil
+    ;:resize-points {:x {:min 162, :max 326}, :y {:min -452, :max -316}}
   }))
 ;; Save/Load state
   (def state-to-save [:id-counter :clusters :nodes :deps])
@@ -430,13 +432,11 @@
   (defn rename-node [state node-id text]
     (update-node state node-id #(assoc % :text text))
    )
-  (defn resize-node [state node-id width height evt-type]
+  (defn resize-node [state node-id width height]
     (let [ height-pt (/ height ppi)
            width-pt (/ width ppi)
-           w (evt-type {:mousemove :moving-width :mouseup :width})
-           h (evt-type {:mousemove :moving-height :mouseup :height})
           ]
-      (update-node state node-id #(assoc (dissoc % :moving-width :moving-height) w width-pt h height-pt))
+      (update-node state node-id #(assoc % :width width-pt :height height-pt))
      )
    )
   (defn recolor-node [state node-id color]
@@ -704,21 +704,29 @@
        )
      )
    )
-  (defn resize-mouse [target evt-type move-key]
+  (defn resize-mouse [target move-key]
+    ;This function is called when the user is dragging/releasing the mouse after clicking the resize handle
+    ;If this was called on a drag event, move-key will be nil (otherwise it's the ID of an event handler that should be unregistered)
+    ;While the mouse is dragging, this updates a placeholder's location by swapping ui-state
+    ;When the mouse is lifted, this updates the actual node and relays the graph
     (fn [e]
       (let [ node( dom/getAncestorByClass target "node-overlay")
              container (dom/getAncestorByClass target "dotgraph")
              bounds (.getBoundingClientRect node)
              ctop (.-top (.getBoundingClientRect container))
-             width (- (.-clientX e) (.-left bounds))
-             height (- (.-clientY e) (.-top bounds))
+             width (max (- (.-clientX e) (.-left bounds)) 35)
+             height (max (- (.-clientY e) (.-top bounds)) 35)
              node-id (el->nodeid target)
             ]
-        (when (and (> width 30) (> height 30) move-key)
-          ((rerender! resize-node) node-id width height evt-type)
-         )
-        (when move-key
-          (events/unlistenByKey move-key)
+        (if move-key
+          ;Mouse lifted: update actual node and clear the resize placeholder
+          (do 
+            (events/unlistenByKey move-key)
+            ((rerender! resize-node) node-id width height)
+            (swap! ui-state (fn [state] (assoc state :resize-points nil :resize-label "")))
+           )
+          ;Mouse dragged: udpate the size of the resize placeholder
+          (swap! ui-state (fn [state] (-> state (assoc-in [:resize-points :x :max] (+ width (get-in state [:resize-points :x :min]))) (assoc-in [:resize-points :y :max] (+ height (get-in state [:resize-points :y :min]))))))
          )
        )
      )
@@ -726,8 +734,12 @@
   (defn node-mousedown [e direction]
     (if (classlist/contains (.-target e) "node-resize")
       (do 
-        (let [move-key (events/listen js/window EventType.MOUSEMOVE (resize-mouse (.-target e) :mousemove nil))]
-          (events/listenOnce js/window EventType.MOUSEUP (resize-mouse (.-target e) :mouseup move-key))
+        (let [target (.-target e)
+              node-id (el->nodeid target)
+              gnode (get-node (:gnodes @app-state) node-id)
+              move-key (events/listen js/window EventType.MOUSEMOVE (resize-mouse (.-target e) nil))]
+          (swap! ui-state (fn [state] (assoc state :resize-points (:points gnode) :resize-label (get-in gnode [:node :text]))))
+          (events/listenOnce js/window EventType.MOUSEUP (resize-mouse target move-key))
          )
        )
       (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (link-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (coords e) direction (.-shiftKey e)))
@@ -881,7 +893,7 @@
    )
   (defn graph [state]
     (let [[_ x-offset y-offset]
-          (re-find #"translate\((\d+) (\d+)\)" (:svg state))
+          (map js/parseInt (re-find #"translate\((\d+) (\d+)\)" (:svg state)))
           ]
       [:div
         {:on-key-press #(.log js/console %)}
@@ -901,6 +913,28 @@
                :on-click #(when (= (.-nodeName (.-target %)) "polygon") ((rerender! add-node) [] []))
                }
           [:div {:class "graph-overlay"} 
+            ;Resize overlay
+            (when (:resize-points @ui-state)
+              (let [xmin (get-in @ui-state [:resize-points :x :min])
+                    xmax (get-in @ui-state [:resize-points :x :max])
+                    ymin (get-in @ui-state [:resize-points :y :min])
+                    ymax (get-in @ui-state [:resize-points :y :max])
+                    x (+ x-offset xmin)
+                    y (+ y-offset ymin)
+                    width (- xmax xmin)
+                    height (- ymax ymin)
+                    ]
+                [:div {:class "resize-overlay"
+                       :style {
+                         :left (str x "px")
+                         :top (str y "px")
+                         :width (str width "px")
+                         :height (str height "px")
+                                                      }}
+                  [:div {:class "task-text"} (:resize-label @ui-state)]
+                 ]
+                )
+              )
             ;Node overlays
             (map
               (fn [node]
@@ -912,8 +946,8 @@
                        :on-mouse-down (when (:node node) #(node-mousedown % (:direction state)))
                        :on-touch-start (when (:node node) #(node-mousedown % (:direction state)))
                        :style {
-                         :left (str (+ (js/parseInt x-offset) (get-in node [:points :x :min])) "px")
-                         :top (str (+ (js/parseInt y-offset) (get-in node [:points :y :min])) "px")
+                         :left (str (+ x-offset (get-in node [:points :x :min])) "px")
+                         :top (str (+ y-offset (get-in node [:points :y :min])) "px")
                          :width (str (* (get-node-dim (:node node) :width) ppi) "px")
                          :height (str (* (get-node-dim (:node node) :height) ppi) "px")
                          :background-color (:color (:node node) "")
@@ -975,9 +1009,9 @@
             (map
               (fn [cluster]
                 (let [
-                  top (+ 1 (js/parseInt y-offset) (get-in cluster [:points :y :min]))
-                  left (+ 1 (js/parseInt x-offset) (get-in cluster [:points :x :min]))
-                  right (+ -1 (js/parseInt x-offset) (get-in cluster [:points :x :max]))
+                  top (+ 1 y-offset (get-in cluster [:points :y :min]))
+                  left (+ 1 x-offset (get-in cluster [:points :x :min]))
+                  right (+ -1 x-offset (get-in cluster [:points :x :max]))
                   width (- right left)
                   ]
                 [:div {:class "cluster-overlay"
