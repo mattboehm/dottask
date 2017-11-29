@@ -211,6 +211,8 @@
     :deps [["node1" "node2"] ["node1" "node3"] ["node2" "node4"] ["node3" "node4"] ["node4" "node5"]]
     :dot nil ; graphviz representation
     :svg "" ;svg output of graphviz
+    :gnodes nil;nodes extracted from graphviz
+    :gclusters nil;clusters extracted from graphviz
   }))
   ; Holds the state of the current ui (whether popups are visible, etc)
   ; This is separate from the app-state because we don't want undo/redo to toggle popups, only the graph state
@@ -316,7 +318,7 @@
           hidden-id-set (set (flatten (vals hidden-ids)))
         ]
       (str
-       "digraph G {\n"
+       "digraph \"\" {\n"
        "dpi=" ppi ";\n"
        "rankdir=" (:dot direction) ";\n" ;direction
        "node [label=\"\" shape=\"rect\" penwidth=\"4\"]\n" ;default node attributes
