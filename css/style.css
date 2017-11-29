@@ -150,6 +150,11 @@ div:hover>span.collapse{
 	font-size: 11pt;
 	color: #333;
 	box-shadow: 0 0 0 1px rgba(102, 102, 102, 0.75);
+        position: absolute;
+        background-color: rgba(255, 255, 255, 0.75);
+        height: 18px;
+        padding-top: 1px;
+        text-align: center;
 }
 .cluster-overlay span.delete {
 	position: absolute;
