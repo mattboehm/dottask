@@ -96,7 +96,7 @@ div:hover>span.collapse{
 }
 
 .node-overlay .node-resize {
-	position: absolute
+	position: absolute;
 	right: 0;
 	bottom: 0;
 	width: 12px;
