@@ -14,9 +14,16 @@
               :source-paths ["src"]
               :figwheel {:on-jsload "dottask.core/render!"}
               :compiler {:main "dottask.core"}
-            }{:id "release"
+            }
+            {:id "help"
               :source-paths ["src"]
-              ;:figwheel {:on-jsload "dottask.core/render!"}
+              :figwheel {:on-jsload "dottask.help/render!"}
+              :compiler {:main "dottask.help"
+                         :pretty-print false
+                         :output-to "help.js"}
+            }
+             {:id "release"
+              :source-paths ["src"]
               :compiler {
                          :main "dottask.core"
                          :output-to "out/main.js"
@@ -24,7 +31,18 @@
                          :optimizations :advanced
                          :pretty-print false
                          :source-map "out/main.js.map"}
-            }]
+            }
+             {:id "help-release"
+              :source-paths ["src"]
+              :compiler {
+                         :main "dottask.help"
+                         :output-to "out/help.js"
+                         :output-dir "out"
+                         :optimizations :advanced
+                         :pretty-print false
+                         :source-map "out/help.js.map"}
+            }
+             ]
   }
   :figwheel {
     :css-dirs ["css"]

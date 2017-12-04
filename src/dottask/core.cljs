@@ -1,8 +1,8 @@
 (ns dottask.core
   (:require
+    [dottask.help :as help]
     [reagent.core :as reagent]
     [clojure.string :as string]
-    [clojure.set :as cset]
     [cljs.reader :as reader]
     [devtools.core :as devtools]
     [goog.dom :as dom]
@@ -218,6 +218,7 @@
   ; This is separate from the app-state because we don't want undo/redo to toggle popups, only the graph state
   (defonce ui-state (reagent/atom {
     :bulk-add-modal-visible? false ;setting this to true makes the bulk add modal pop up
+    :help-visible? true
     :resize-points nil ;while dragging the node resize handle, this stores size for the node (upper left corner is node's upper left, bottom right is position of the mouse). When this is set, a preview of the new node is rendered.
     ;:resize-points {:x {:min 162, :max 326}, :y {:min -452, :max -316}}
   }))
@@ -956,7 +957,6 @@
           )
        )
      )
-
   (defn graph [state]
     (let [[_ x-offset y-offset]
           (map js/parseInt (re-find #"translate\((\d+) (\d+)\)" (:svg state)))
@@ -973,7 +973,15 @@
         [:button {:on-click hist/undo!} "Undo"]
         [:button {:on-click hist/redo!} "Redo"]
         [:button {:on-click #(let [w (js/window.open)] (.write (.-document w) (str "<pre>" (hesc (graph->dot (:nodes @app-state) (:deps @app-state) (:clusters @app-state) ((:direction @app-state) directions) true)) "</pre>")))} "Show dot"]
-        [:button {:on-click #(show-help)} "Help"]
+        [:button {:on-click (toggler ui-state :help-visible?)} "Help"]
+        [:div {:class (str "help-window" (when-not (:help-visible? @ui-state) " hidden")) :style {:position "fixed" :right "0px" :width "35%" :height "100%" :z-index "99999" :background-color "#f6f6f6" :overflow-y "auto" :padding "10px" :box-shadow "0 0 8px 2px #666" :border "1px solid #666"}} 
+         [:div {:style {:position "absolute" :right "0px" :top "0px"}}
+           [:a {:href "./help.html" :target "_blank" :on-click (toggler ui-state :help-visible?)} "Pop out"]
+           " "
+           [:a {:href "javascript:" :on-click (toggler ui-state :help-visible?)} "Close"]
+          ]
+         [help/page help/dottask-help]
+         ]
         [bulk-add-modal]
         [:div {:class "dotgraph"
                ;:on-click #(when (= (.-nodeName (.-target %)) "polygon") ((rerender! add-node) [] []))
