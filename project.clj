@@ -12,8 +12,8 @@
   :cljsbuild {
     :builds [{:id "dev"
               :source-paths ["src"]
-              :figwheel {:on-jsload "dottask.core/render!"}
-              :compiler {:main "dottask.core"}
+              :figwheel {:on-jsload "dottask.graph/render!"}
+              :compiler {:main "dottask.graph"}
             }
             {:id "help"
               :source-paths ["src"]
@@ -25,7 +25,7 @@
              {:id "release"
               :source-paths ["src"]
               :compiler {
-                         :main "dottask.core"
+                         :main "dottask.graph"
                          :output-to "out/main.js"
                          :output-dir "out"
                          :optimizations :advanced
