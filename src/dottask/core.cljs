@@ -1,6 +1,5 @@
 (ns dottask.core
   (:require
-    [dottask.help :as help]
     [reagent.core :as reagent]
     [clojure.string :as string]
     [cljs.reader :as reader]
@@ -10,12 +9,7 @@
     [goog.events :as events]
     [goog.html.SafeHtml :as shtml]
     [goog.string :as gstring]
-    [historian.core :as hist]
     [tubax.core :as tbx])
-  (:require-macros
-    [historian.core :as hist]
-   )
-  (:import [goog.events EventType])
 )
 ;; Constants
   ;Colors for the nodes. :shortcut is the keyboard shortcut to set selected node that color
@@ -37,7 +31,7 @@
     {:name "blue" :hex "#4E638E" :shortcut "b"}
     ;{:name "#2D4471" :hex "#2D4471"}
     ;{:name "#7788AA" :hex "#7788AA"}
-    {:name "purple" :hex "#744B8E" :shortcut "v"}
+    {:name "violet" :hex "#744B8E" :shortcut "v"}
     ;{:name "#562A72" :hex "#562A72"}
     ;{:name "#9675AB" :hex "#9675AB"}
   ])
@@ -135,34 +129,6 @@
   (defn get-node [nodes id]
     (first (filter #(= id (:id %)) nodes))
    )
-  (defn show-help []
-    (js/alert (str 
-      "Mouse:\n"                                      
-      "\tclick on card text: change text\n"
-      "\tdouble-click on card: add box around card\n"
-      "\tdrag from one card to another: link/unlink cards\n"
-      "\t   hold down shift to set/change the label for the link\n"
-      "\tdrag from one card to empty space above/below:\n"
-      "\t   create card linked to/from start card\n"
-      "\t   hold down shift to 'split' the card into 2\n"
-      "\tdrag between cards and box titles: box/unbox cards\n"
-      "Buttons:\n"
-      "\tx: delete card/box\n"
-      "\thandle at bottom right: resize card\n"
-      "Keyboard Shortcuts:\n"
-      "\tj/k: go to previous/next card\n"
-      "\tEsc: de-select card\n"
-      "\td: delete selected card\n"
-      "\te: edit text of selected card\n"
-      "\ti: put selected card inside a new box\n"
-      "\t" (clojure.string/join "/" (map :shortcut colors)) ": change color of selected card to " (clojure.string/join "/" (map :name colors)) "\n" 
-      "\t</>: add card before/after\n"
-      "\t-: link/unlink cards (first on source, then target)\n"
-      "Saving: clicking save adds all the page state to the url hash. "
-      "This can be bookmarked so that you can reload the page later "
-      "and pick up where you left off."
-    ))
-   )
   ;get a node's width/height, using the proper defaults if they're not set
   (defn get-node-dim [node dim]
     (case dim
@@ -170,6 +136,19 @@
       :height (or (:height node) 1.2)
       )
    )
+  (defn get-el [selector]
+    (.querySelector js/document selector)
+    )
+  (defn a-link
+    ([id text]
+      (a-link id text nil)
+     )
+    ([id text func]
+    [:a {
+         :href "javascript:"
+         :on-click (fn [] (when func (func)) (js/setTimeout (fn [] (->> (str "#" id) (get-el) (.scrollIntoView) )) 1))}
+      text]
+    ))
   ;get the node id off of a clicked element. looks it up via the data-nodeid html attribute
   (defn el->nodeid [el]
     (let [node (dom/getAncestorByClass el "node-overlay")
