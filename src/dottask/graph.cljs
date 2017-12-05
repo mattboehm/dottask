@@ -53,7 +53,7 @@
   }))
 ;; Save/Load state
   ;keys of app-state to save in the hash. the rest can be computed from this.
-  (def state-to-save [:id-counter :clusters :nodes :deps])
+  (def state-to-save [:id-counter :direction :clusters :nodes :deps])
   ;save the state to the url hash
   (defn save-hash [state]
     (aset js/window "location" "hash" (js/encodeURIComponent(pr-str(select-keys state state-to-save))))
