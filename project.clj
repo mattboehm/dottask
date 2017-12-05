@@ -36,11 +36,11 @@
               :source-paths ["src"]
               :compiler {
                          :main "dottask.help"
-                         :output-to "out/help.js"
-                         :output-dir "out"
+                         :output-to "out-help/help.js"
+                         :output-dir "out-help"
                          :optimizations :advanced
                          :pretty-print false
-                         :source-map "out/help.js.map"}
+                         :source-map "out-help/help.js.map"}
             }
              ]
   }
