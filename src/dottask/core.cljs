@@ -43,24 +43,28 @@
       :dot "BT" ;graphviz rankdir
       :coord :y ;x/y axis
       :before > ;function to compare x/y coordinates. Returns true if first arg is "before" second
+      :rotation "0deg" ;how much to rotate the arrow icon
      }
     :down {
       :label "down"
       :dot "TB"
       :coord :y
       :before <
+      :rotation "180deg"
      }
     :left {
       :label "left"
       :dot "RL"
       :coord :x
       :before >
+      :rotation "270deg"
      }
     :right {
       :label "right"
       :dot "LR"
       :coord :x
       :before <
+      :rotation "90deg"
      }
    })
 ;; Utils
@@ -139,6 +143,9 @@
   (defn get-el [selector]
     (.querySelector js/document selector)
     )
+  (defn jump-to-anchor [id]
+    (js/setTimeout (fn [] (->> (str "#" id) (get-el) (.scrollIntoView) )) 1)
+    )
   (defn a-link
     ([id text]
       (a-link id text nil)
@@ -146,7 +153,7 @@
     ([id text func]
     [:a {
          :href "javascript:"
-         :on-click (fn [] (when func (func)) (js/setTimeout (fn [] (->> (str "#" id) (get-el) (.scrollIntoView) )) 1))}
+         :on-click (fn [] (when func (func)) (jump-to-anchor id))}
       text]
     ))
   ;get the node id off of a clicked element. looks it up via the data-nodeid html attribute
@@ -169,3 +176,34 @@
       cluster-id
      )
    )
+  (defn center [point]
+    {:x (/ (+ (get-in point [:x :min]) (get-in point [:x :max])) 2)
+     :y (/ (+ (get-in point [:y :min]) (get-in point [:y :max])) 2)
+     }
+    )
+  (defn width [rect]
+    (- (get-in rect [:x :max]) (get-in rect [:x :min])))
+  (defn height [rect]
+    (- (get-in rect [:y :max]) (get-in rect [:y :min])))
+  (defn rad->deg [rad]
+    (-> rad
+        (* 180)
+        (/ Math.PI)))
+  (defn get-angle [start end]
+    (->
+      (Math/atan2 (- (:y end) (:y start)) (- (:x end) (:x start)))
+      (rad->deg)
+     )
+    )
+  (defn polygon-points
+    ([start moves]
+     (polygon-points start moves [start])
+    )
+    ([start moves so-far]
+     (if (not-empty moves)
+       (polygon-points start (rest moves) (conj so-far (vec (map + (last so-far) (first moves)))))
+       (clojure.string/join " " (map (partial clojure.string/join ",") (conj so-far start)))
+       )
+     )
+    
+    )

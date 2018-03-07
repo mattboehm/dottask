@@ -50,6 +50,8 @@
     :help-visible? false
     :resize-points nil ;while dragging the node resize handle, this stores size for the node (upper left corner is node's upper left, bottom right is position of the mouse). When this is set, a preview of the new node is rendered.
     ;:resize-points {:x {:min 162, :max 326}, :y {:min -452, :max -316}}
+    :preview-points nil ;while dragging from a node, the start/end point of the drag. Used to show a preview of the action being taken (link/unlink, new node above/below, add/remove from cluster)
+    :edit-node-id nil ;node whose text is currently being edited
   }))
 ;; Save/Load state
   ;keys of app-state to save in the hash. the rest can be computed from this.
@@ -311,10 +313,7 @@
   (defn select-node [state node-id]
     (assoc state :selected-node-id node-id)
    )
-  (defn select-next-node
-    ([state] (select-next-node state 1))
-    ;direction = 1/-1 for forwards/backwards
-    ([state direction]
+  (defn get-next-node-id [state direction current]
      (let [gdata (remove :cluster (:gnodes state))
            positioned-nodes (sort (map (fn [node]  ; [[y x id]...]
                                    (vector (apply + (vals (get-in node [:points :y]))); sort by the midpoint for the height
@@ -323,15 +322,24 @@
                                     ))
                                  gdata))
            node-index (apply hash-map (apply concat (map-indexed (fn [idx node] [(nth node 2) idx]) positioned-nodes)))
-           old-index (get node-index (:selected-node-id state))
-           new-index (if (nil? (:selected-node-id state)) 0 (mod (+ old-index direction) (count positioned-nodes)))
+           old-index (get node-index current)
+           new-index (if (nil? current) 0 (mod (+ old-index direction) (count positioned-nodes)))
            new-node (nth positioned-nodes new-index)
            new-node-id (nth new-node 2)
            ]
-        (assoc state :selected-node-id new-node-id)
+        new-node-id
        )
+    )
+  (defn select-next-node
+    ([state] (select-next-node state 1))
+    ;direction = 1/-1 for forwards/backwards
+    ([state direction]
+      (assoc state :selected-node-id (get-next-node-id state direction (:selected-node-id state)))
      )
    )
+  (defn edit-next [ui-state state direction]
+    (assoc ui-state :edit-node-id (get-next-node-id state direction (:edit-node-id ui-state)))
+    )
   (defn delete-node [state id]
     (let [
           new-nodes (filterv #(not= id (:id %)) (:nodes state))
@@ -513,9 +521,12 @@
        )
      )
    )
+  (defn find-dep [state dep]
+    (first (filter #(= (take 2 %) (take 2 dep)) (:deps state)))
+   )
   ;add/remove a dep
   (defn toggle-dep [state dep]
-    (let [found (first (filter #(= (take 2 %) (take 2 dep)) (:deps state)))]
+    (let [found (find-dep state dep)]
       (update-in state [:deps]
         (fn [deps]
           (if (nth dep 2 nil)
@@ -552,8 +563,10 @@
 ;; Event Handlers
   ;when a user lifts their mouse after dragging from a node
   ;creates new node, splits node, toggles link, or toggles clustering depending on the target
-  (defn node-mouseup [src-node-id src-coords direction shift-key]
+  (defn node-mouseup [src-node-id src-coords direction shift-key move-key]
     (fn [e]
+      (swap! ui-state (fn [state] (assoc state :preview-points nil)))
+      (when move-key (events/unlistenByKey move-key))
       (let [
             node-id (core/el->nodeid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
             cluster-id (core/el->clusterid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
@@ -622,23 +635,88 @@
        )
      )
    )
+  (defn graph-coords [target e]
+      (let [ container (dom/getAncestorByClass target "dotgraph")
+             bounds (.getBoundingClientRect container)
+            ]
+        {:x (- (.-clientX e) (.-left bounds))
+         :y (- (.-clientY e) (.-top bounds))}
+        )
+    )
+  (defn link-preview [target]
+    (fn [e] 
+        (let [
+              node-id (core/el->nodeid (.-target e))
+              cluster-id (core/el->clusterid (.-target e))
+              ]
+          (swap! ui-state (fn [state] (->
+                                        state
+                                        (assoc-in [:preview-points :end] (graph-coords target e))
+                                        (assoc-in [:preview-points :end-node-id] node-id)
+                                        (assoc-in [:preview-points :end-cluster-id] cluster-id))))
+         )
+      )
+    )
+  (defn help-mouseup [e]
+    (swap! ui-state assoc :help-drag false)
+    (let [help-node (dom/getAncestor (.-target e) #(and (.-hasAttribute %) (.hasAttribute % "data-help-link")) true)]
+      (when help-node
+        (swap! ui-state assoc :help-visible? true)
+        (core/jump-to-anchor (.getAttribute help-node "data-help-link"))
+       )
+      )
+    )
+  (defn help-mousedown [e]
+    (.log js/console "down")
+    (events/listenOnce js/window EventType.MOUSEUP help-mouseup)
+    (swap! ui-state assoc :help-drag true)
+    )
   (defn node-mousedown [e direction]
-    (if (classlist/contains (.-target e) "node-resize")
-      (do ;draw a preview of the resized node and register the handler for when the mouse is lifted
-        (let [target (.-target e)
-              node-id (core/el->nodeid target)
-              gnode (core/get-node (:gnodes @app-state) node-id)
-              move-key (events/listen js/window EventType.MOUSEMOVE (resize-mouse (.-target e) nil))]
-          (swap! ui-state (fn [state] (assoc state :resize-points (:points gnode) :resize-label (get-in gnode [:node :text]))))
-          (events/listenOnce js/window EventType.MOUSEUP (resize-mouse target move-key))
+    (when (= (.-button e) 0 )
+      (let [target (.-target e)
+            node-id (core/el->nodeid target)
+            gnode (core/get-node (:gnodes @app-state) node-id)
+            ]
+        (if (classlist/contains (.-target e) "node-resize")
+          (let [move-key (events/listen js/window EventType.MOUSEMOVE (resize-mouse (.-target e) nil))] ;draw a preview of the resized node and register the handler for when the mouse is lifted
+
+            (swap! ui-state (fn [state] (assoc state :resize-points (:points gnode) :resize-label (get-in gnode [:node :text]))))
+            (events/listenOnce js/window EventType.MOUSEUP (resize-mouse target move-key))
+           )
+          (let [move-key (events/listen js/window EventType.MOUSEMOVE (link-preview (.-target e)))
+                start-point (graph-coords target e)]
+            (swap! ui-state (fn [state] (assoc state :preview-points {:start start-point :end start-point :start-node-id node-id :end-node-id node-id})))
+            (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (node-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (core/coords e) direction (.-shiftKey e) move-key))
+           )
          )
        )
-      (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (node-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (core/coords e) direction (.-shiftKey e)))
      )
    )
   (defn cluster-mousedown [e]
     (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (cluster-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "cluster-overlay") "data-clusterid") (.-shiftKey e)))
    )
+  (defn edit-node! [node-id]
+    (swap! ui-state (fn [state] (assoc state :edit-node-id node-id)))
+    (let [textbox (.querySelector js/document ".edit-overlay textarea")]
+      (js/setTimeout (fn [] (.focus textbox)))
+      (js/setTimeout (fn [] (.select textbox)))
+     )
+   )
+  (defn edit-done! 
+    ([node-id text]
+      (edit-done! node-id text nil)
+     )
+    ([node-id text select-id]
+      (edit-node! select-id)
+      ((rerender! rename-node) node-id text)
+     )
+    )
+  (defn add-and-name-node! [state befores afters]
+    (let [[new-state new-id] (add-node state befores afters "" true)]
+      (edit-node! new-id)
+      new-state
+      )
+    )
 ;; Dom rendering
   (defn modal [is-visible? close! options contents]
     [:div {
@@ -658,12 +736,21 @@
       contents
      )
    )
-  (defn textarea [value]
-    [:textarea {
+  (defn text-area [value attrs]
+    [:textarea (merge {
            :rows 20
            :value @value
-           :on-change #(reset! value (-> % .-target .-value))}])
-
+           :on-change #(reset! value (-> % .-target .-value))} attrs)])
+  (defn icon
+    ([name size]
+     (icon name size {})
+     )
+    ([name size style]
+    [:svg {:style (merge {:width size :height size} style)} [:use {:href (str "#" name)}]]
+    ))
+  (defn btn [opts contents]
+    [:span (merge {:class "button"} opts) contents]
+    )
   ;; Bulk add
     (defn parse-line [index line]
       (let [clean (clojure.string/triml line)
@@ -764,7 +851,7 @@
                 [:option {:value "link"} "link"]
                 [:option {:value "cluster"} "cluster"]
                ]
-              [textarea bulk-text]
+              [text-area bulk-text {}]
               [:div {:class "modal-buttons"}
                 [:button
                  {
@@ -792,18 +879,21 @@
           (map js/parseInt (re-find #"translate\((\d+) (\d+)\)" (:svg state)))
           ]
       [:div
-        {:on-key-press #(.log js/console %)}
-        "Arrow Direction: "
-        [:select {:value (:label ((:direction state) core/directions)) :on-change #((rerender! set-direction) (keyword (-> % .-target .-value)))} (map (fn [[dirkey dir]] [:option {:key dirkey :value dirkey :on-click #((rerender! set-direction) dirkey)} (:label dir)]) core/directions)]
-        [:br]
-        [:button {:on-click #((rerender! add-node) [] [])} "Add card"]
-        [:button {:on-click (core/toggler ui-state :bulk-add-modal-visible?)} "Bulk add"]
-        [:button {:on-click #((rerender! delete-all))} "Delete all"]
-        [:button {:on-click #(save-hash @app-state)} "Save"]
-        [:button {:on-click hist/undo!} "Undo"]
-        [:button {:on-click hist/redo!} "Redo"]
-        [:button {:on-click #(let [w (js/window.open)] (.write (.-document w) (str "<pre>" (core/hesc (graph->dot (:nodes @app-state) (:deps @app-state) (:clusters @app-state) ((:direction @app-state) core/directions) true)) "</pre>")))} "Show dot"]
-        [:button {:on-click (core/toggler ui-state :help-visible?)} "Help"]
+        {:class (when (:help-drag @ui-state) " help-drag") :on-key-press #(.log js/console %)}
+        [:div {:class "button-bar"}
+          [btn {:title "Add node" :data-help-link "add-card" :on-click #((rerender! add-node) [] [])} [icon "plus" "30px"]]
+          [btn {:title "Bulk add" :data-help-link "bulk-add" :on-click (core/toggler ui-state :bulk-add-modal-visible?)} [icon "list-alt" "30px"]]
+          [btn {:title "Delete all" :data-help-link "delete-all" :on-click #((rerender! delete-all))} [icon "trash" "30px"]]
+          [btn {:title "Save" :data-help-link "saving" :on-click #(save-hash state)} [icon "save" "30px"]]
+          [btn {:title "Undo" :data-help-link "undo-button" :on-click hist/undo! :style (when-not (hist/can-undo?) {:cursor "default" :opacity "0.3"})} [icon "undo" "30px"]]
+          [btn {:title "Redo" :data-help-link "undo-button" :on-click hist/redo! :style (when-not (hist/can-redo?) {:cursor "default" :opacity "0.3"})} [icon "undo" "30px" {:transform "scale(-1, 1)"}]]
+          [:div {:title "Change arrow direction" :class "direction-button" :data-help-link "arrow-dir"}
+            [:select {:class "hidden-select" :value (:label ((:direction state) core/directions)) :on-change #((rerender! set-direction) (keyword (-> % .-target .-value)))} (map (fn [[dirkey dir]] [:option {:key dirkey :value dirkey :on-click #((rerender! set-direction) dirkey)} [icon "plus" "16px"](:label dir)]) core/directions)]
+            [icon "arrow-circle-up" "30px" {:transform (str "rotate(" (:rotation ((:direction state) core/directions)) ")")}]
+           ]
+          [btn {:title "Export to dot format" :data-help-link "export-dot" :on-click #(let [w (js/window.open)] (.write (.-document w) (str "<pre>" (core/hesc (graph->dot (:nodes state) (:deps state) (:clusters state) ((:direction state) core/directions) true)) "</pre>")))} [icon "file-code" "30px"]]
+          [btn {:title "Help. Try dragging from me to highlighted elements!" :on-mouse-down help-mousedown :on-click (core/toggler ui-state :help-visible?)} [icon "question" "30px"]]
+         ]
         [:div {:class (str "help-window" (when-not (:help-visible? @ui-state) " hidden")) :style {:position "fixed" :right "0px" :width "35%" :height "100%" :z-index "99999" :background-color "#f6f6f6" :padding "10px" :box-shadow "0 0 8px 2px #666" :border "1px solid #666"}} 
          [:div {:style {:position "relative" :width "100%" :text-align "right" :padding-right "20px"}}
            [:a {:href "./help.html" :target "_blank" :on-click (core/toggler ui-state :help-visible?)} "Pop out"]
@@ -815,20 +905,17 @@
             ]
          ]
         [bulk-add-modal]
-        [:div {:class "dotgraph"
+        [:div {:class (str "dotgraph" (when (:edit-node-id @ui-state) " editing") )
                ;:on-click #(when (= (.-nodeName (.-target %)) "polygon") ((rerender! add-node) [] []))
                }
           [:div {:class "graph-overlay"} 
             ;Resize overlay
             (when (:resize-points @ui-state)
-              (let [xmin (get-in @ui-state [:resize-points :x :min])
-                    xmax (get-in @ui-state [:resize-points :x :max])
-                    ymin (get-in @ui-state [:resize-points :y :min])
-                    ymax (get-in @ui-state [:resize-points :y :max])
-                    x (+ x-offset xmin)
-                    y (+ y-offset ymin)
-                    width (- xmax xmin)
-                    height (- ymax ymin)
+              (let [points (:resize-points @ui-state)
+                    x (+ x-offset (get-in points [:x :min]))
+                    y (+ y-offset (get-in points [:y :min]))
+                    width (core/width points)
+                    height (core/height points)
                     ]
                 [:div {:class "resize-overlay"
                        :style {
@@ -868,6 +955,7 @@
                     [:span
                       { :class "delete"
                         :title "Delete"
+                        :data-help-link "delete-card"
                         :on-click #(if (:cluster node)
                                      ((rerender!  delete-cluster) (:id node) true)
                                      ((rerender!  delete-node) (:id node)))
@@ -875,7 +963,8 @@
                       "×"
                      ]
                     (when (:node node)
-                      [:span {:class "color-picker"}
+                      [:span {:class "color-picker"
+                              :data-help-link "card-color"}
                         (map
                           (fn [color] 
                             [:span
@@ -893,14 +982,17 @@
                    ]
                   [:div ;Text box containing node label
                     { :class "task-text"
+                      :data-help-link "card-text"
                       :title "Click to Change"
-                      :on-click (fn [e] ((rerender! (if (:cluster node) rename-cluster-prompt rename-prompt)) (:id node)) false)}
+                      :on-click (fn [e] (edit-node! (:id node)) false)}
                     ;Contents are the node/cluster text
                     (or (get-in node [:node :text]) (get-in node [:cluster :text]))
                    ]
                   (when (:node node)
                     [:span ;Nodes have a resize hander in the bottom right
-                      {:class "draggable node-resize"}
+                      {:class "draggable node-resize"
+                       :data-help-link "card-resize"
+                       }
                       ""
                      ]
                    )
@@ -950,10 +1042,99 @@
                )
               (:gclusters state))
           ]
+          ; + / - icon by cursor when previewing add/remove link or add to/remove from cluster
+          (when (:preview-points @ui-state)
+            (let [{end :end start-id :start-node-id end-id :end-node-id end-cluster-id :end-cluster-id} (:preview-points @ui-state)
+                  start-node (core/get-node (:nodes state) start-id)
+                  icon (or
+                         (when (and end-id (not= end-id start-id))
+                               (if (find-dep state [start-id end-id])
+                                 "#minus"
+                                 "#plus"
+                                )
+                           )
+                         (when end-cluster-id
+                               (if (inside-cluster? (:clusters state) start-node end-cluster-id)
+                                 "#minus"
+                                 "#plus"
+                                )
+                          ))]
+              (when icon
+                [:svg {:class "link-preview-icon"
+                       :style {:position "absolute"
+                               :top (str (- (:y end) 5) "px")
+                               :left (str (+ 13 (:x end)) "px")
+                               :width "18px"
+                               :height "18px"
+                               :fill (if (= icon "#plus") "green" "red")
+                               }}
+                    ;This is kinda lame, but if we just have 1 use tag and switch the href, React tries to update just the href attribute which is read-only
+                    [:use {:href "#plus" :style (if (not= icon "#plus") {:display "none"} {})}]
+                    [:use {:href "#minus" :style (if (not= icon "#minus") {:display "none"} {})}]
+                 ]))
+           )
+          ; Arrow when dragging from node (plus node outline if cursor is on blank area)
+          (when (:preview-points @ui-state)
+            [:svg {:class "link-preview"}
+               (let [points (:preview-points @ui-state)
+                     {start :start end :end start-id :start-node-id end-id :end-node-id end-cluster-id :end-cluster-id} (:preview-points @ui-state)
+                     rise (- (:y end) (:y start))
+                     run (- (:x end) (:x start))
+                     color "#666"
+                     ;point to source node if we're on blank space and above our start point
+                     point-backwards? (and (not (or end-id end-cluster-id)) (= :before (core/compare-coords end start ((:direction state) core/directions))))
+                     arrow-point (if point-backwards? start end)
+                     angle (->
+                             (core/get-angle start end)
+                             ;if we're pointing back at the source node, need to flip 180 deg
+                             (+ (if point-backwards? 180 0))
+                             )
+                     ]
+                [:g {:class "edge pv-line"}
+                 ;if on empty space, draw rectangle for placeholder node
+                 (when-not (or end-id end-cluster-id) [:rect {:x (- (:x end) 72) :y (- (:y end) 43) :width 144 :height 86 :stroke color :stroke-width 2 :stroke-dasharray "8,4" :fill "none"}])
+                 ;preview link line
+                 [:line {:stroke color :x1 (:x start) :y1 (:y start) :x2 (:x end) :y2 (:y end)}]
+                 ;arrow head (when not on same node we started on)
+                 (when (not= start-id end-id)
+                   [:polygon {:fill color
+                              :stroke color
+                              :points (core/polygon-points [(:x arrow-point) (:y arrow-point)] [[-10 -3.5] [0 7]])
+                              :transform (str "rotate(" angle " " (:x arrow-point) " " (:y arrow-point) ")")}])
+                 ]
+               )
+             ]
+           )
           ;SVG containing the graphviz graph. Used for edges and clusters
           [:div {:dangerouslySetInnerHTML {:__html
                 (:svg state)
               }}]
+          ;Overlay when editing the text of a node
+          (let [ edit-id (:edit-node-id @ui-state)
+                 gnode (core/get-node (:gnodes state) edit-id)
+                 node-text (reagent/atom (:text (:node gnode)))
+                 width (core/width (:points gnode))
+                 height (core/height (:points gnode))
+                ]
+            [:div {:class "edit-overlay"
+                   :on-click (fn [e] (edit-done! edit-id @node-text))
+                   }
+                [text-area node-text {:on-click (fn [e] false)
+                            :on-key-down (fn [e]
+                                           (if (contains? #{13 27} (.-which e))
+                                             (edit-done! edit-id @node-text) ;enter/escape saves changes
+                                             (when (= 9 (.-which e)) ; tab switches edit focus
+                                               (edit-done! edit-id @node-text (get-next-node-id state (if (.-shiftKey e) -1 1) edit-id))
+                                               false
+                                              )))
+                            :rows 20
+                            :style {:top (str (+ 8 y-offset (get-in gnode [:points :y :min])) "px")
+                                    :left (str (+ 8 x-offset (get-in gnode [:points :x :min])) "px")
+                                    :width (str (- width 20) "px")
+                                    :height (str (- height 22) "px")
+                                    }} ]
+             ]
+           )
          ]
        ]
      )
@@ -961,7 +1142,7 @@
 ;; Init
   (.initializeTouchEvents js/React true)
   ;handle key events
-  (set! (.-onkeydown js/document) (fn [evt] 
+  (set! (.-onkeydown js/document) (fn on-key-press [evt] 
     (let [shift (.-shiftKey evt);whether shift key is being held down
           selected (:selected-node-id @app-state)
           keycode (.-which evt)
@@ -978,7 +1159,7 @@
           ;d
           68 ((rerender! delete-node) selected) 
           ;e
-          69 ((rerender! rename-prompt) selected)
+          69 (edit-node! selected)
           ;i
           73 ((rerender! add-cluster) (core/prompt "Enter title for box:" "") [selected]) 
           ;j
@@ -988,9 +1169,9 @@
           ;n
           78 ((rerender! add-node) [] [] (core/prompt "Enter title for node:" ""))
           ;,/<
-          188 (when shift ((rerender! add-node) [] [selected] (core/prompt "Enter title for node:" "")))
+          188 (when shift ((rerender! add-and-name-node!) [] [selected]))
           ;./>
-          190 (when shift ((rerender! add-node) [selected] [] (core/prompt "Enter Title:" "")))
+          190 (when shift ((rerender! add-and-name-node!) [selected] []))
           ;-
           189 ((rerender! on-toggle-dep-click) selected (if shift (core/prompt "Enter link text:" "") nil))
           ""

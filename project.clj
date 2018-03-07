@@ -7,7 +7,8 @@
                  [reagent "0.5.1"]
                  [sablono "0.3.6"]]
   :plugins [[lein-figwheel "0.5.0-1"]
-            [lein-cljsbuild "1.1.3"]]
+            [lein-cljsbuild "1.1.3"]
+            [lein-gossip "0.1.0-SNAPSHOT"]]
   :clean-targets [:target-path "out"]
   :cljsbuild {
     :builds [{:id "dev"
