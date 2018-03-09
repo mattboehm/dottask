@@ -237,7 +237,7 @@
 
   (defn dot->svg [dot]
     (string/replace;TODO replacing pt with px globally might be too general
-      (js/Viz dot "svg") 
+      (js/Viz dot (js-obj "format" "svg"))
       #"pt\""
       "px\""
      )
@@ -791,6 +791,50 @@
         (map (fn [line] (assoc line :is-parent? (contains? pars (:idx line)))) parsed)
        )
      )
+    (defn dot->state [state dot]
+      (let [json (js/Viz dot (js-obj "format" "json"))
+            data (js->clj (.parse js/JSON json) :keywordize-keys true)
+            objects (->>
+                      (:objects data)
+                      (filter #(contains? % :_draw_))
+                     )
+            nodes (->>
+                    objects
+                    (remove #(contains? % :nodes))
+                    (into [])
+                   )
+            [st node-lookup] (reduce (fn [[st lookup] node]
+                                       (let [label (if (= (:label node) "\\N") (:name node) (:label node))
+                                             [newst node-id] (add-node st [] [] label true)
+                                             newlookup (assoc lookup (:_gvid node) node-id)]
+                                         [newst newlookup]))
+                                     [state {}]
+                                     nodes)
+            clusters (->>
+                       objects
+                       (filter #(or (contains? % :nodes) (contains? % :subgraphs)))
+                       (sort-by (comp - count :nodes))
+                      )
+            [st2 cluster-lookup] (reduce (fn[[st lookup] cluster]
+                                           (let [[newst cluster-id] (add-cluster st (:label cluster) (map node-lookup (:nodes cluster)) true)
+                                                 newlookup (assoc lookup (:_gvid cluster) cluster-id)]
+                                             [newst newlookup] ))
+                                         [st {}]
+                                         clusters)
+            cluster-nestings (mapcat #(map (fn [cl] [(:_gvid %) cl]) (:subgraphs %)) clusters)
+            st3 (reduce (fn [st [parent-id child-id]]
+                          (toggle-cluster-nesting st (cluster-lookup child-id) (cluster-lookup parent-id)))
+                        st2
+                        cluster-nestings)
+            edges (->>
+                    (:edges data)
+                    (map (fn [x] [(node-lookup (:tail x)) (node-lookup (:head x))]))
+                    )
+            st4 (assoc st3 :deps (into (:deps st3) edges))
+            ]
+         st4
+       )
+     )
     (defn parse-bulk-add [text]
       (let [
             lines (remove empty? (clojure.string/split-lines text))
@@ -850,6 +894,7 @@
                 [:option {:value "ignore"} "ignore"]
                 [:option {:value "link"} "link"]
                 [:option {:value "cluster"} "cluster"]
+                [:option {:value "graphviz"} "graphviz"]
                ]
               [text-area bulk-text {}]
               [:div {:class "modal-buttons"}
@@ -857,16 +902,13 @@
                  {
                    :style {:display "inline-block" :float "right"}
                    :on-click #(
-                     let [
-                          ;lines (remove empty? (clojure.string/split-lines @bulk-text))
-                          parsed (parse-bulk-add @bulk-text)
-                          ]
                      ((core/toggler ui-state :bulk-add-modal-visible?))
-                     ((rerender! (fn [state] (->
-                                               state
-                                               (add-lines parsed @mode)
-                                               ))))
-                  )}
+                     (if (= @mode "graphviz")
+                       ((rerender! dot->state) @bulk-text)
+                       ((rerender! (fn [state] (->
+                                                 state
+                                                 (add-lines (parse-bulk-add @bulk-text) @mode)
+                                                 ))))))}
                  "Add nodes"]
                ]
              ]
@@ -876,7 +918,7 @@
      )
   (defn graph [state]
     (let [[_ x-offset y-offset]
-          (map js/parseInt (re-find #"translate\((\d+) (\d+)\)" (:svg state)))
+          (map js/parseInt (re-find #"translate\(([\d.]+) ([\d.]+)\)" (:svg state)))
           ]
       [:div
         {:class (when (:help-drag @ui-state) " help-drag") :on-key-press #(.log js/console %)}
@@ -922,8 +964,7 @@
                          :left (str x "px")
                          :top (str y "px")
                          :width (str width "px")
-                         :height (str height "px")
-                                                      }}
+                         :height (str height "px")}}
                   [:div {:class "task-text"} (:resize-label @ui-state)]
                  ]
                 )
