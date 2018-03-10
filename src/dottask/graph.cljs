@@ -563,7 +563,7 @@
 ;; Event Handlers
   ;when a user lifts their mouse after dragging from a node
   ;creates new node, splits node, toggles link, or toggles clustering depending on the target
-  (defn node-mouseup [src-node-id src-coords direction shift-key move-key]
+  (defn node-mouseup [src-node-id src-coords direction move-key]
     (fn [e]
       (swap! ui-state (fn [state] (assoc state :preview-points nil)))
       (when move-key (events/unlistenByKey move-key))
@@ -571,6 +571,7 @@
             node-id (core/el->nodeid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
             cluster-id (core/el->clusterid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
             tgt-coords (core/coords e)
+            shift-key (.-shiftKey e)
             ]
         (cond 
           ;On a node that's not a collapsed cluster. link to it.
@@ -651,6 +652,7 @@
               ]
           (swap! ui-state (fn [state] (->
                                         state
+                                        (assoc-in [:preview-points :shift-key] (.-shiftKey e))
                                         (assoc-in [:preview-points :end] (graph-coords target e))
                                         (assoc-in [:preview-points :end-node-id] node-id)
                                         (assoc-in [:preview-points :end-cluster-id] cluster-id))))
@@ -686,7 +688,7 @@
           (let [move-key (events/listen js/window EventType.MOUSEMOVE (link-preview (.-target e)))
                 start-point (graph-coords target e)]
             (swap! ui-state (fn [state] (assoc state :preview-points {:start start-point :end start-point :start-node-id node-id :end-node-id node-id})))
-            (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (node-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (core/coords e) direction (.-shiftKey e) move-key))
+            (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (node-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (core/coords e) direction move-key))
            )
          )
        )
@@ -1085,14 +1087,17 @@
           ]
           ; + / - icon by cursor when previewing add/remove link or add to/remove from cluster
           (when (:preview-points @ui-state)
-            (let [{end :end start-id :start-node-id end-id :end-node-id end-cluster-id :end-cluster-id} (:preview-points @ui-state)
+            (let [{shift-key :shift-key end :end start-id :start-node-id end-id :end-node-id end-cluster-id :end-cluster-id} (:preview-points @ui-state)
                   start-node (core/get-node (:nodes state) start-id)
                   icon (or
                          (when (and end-id (not= end-id start-id))
-                               (if (find-dep state [start-id end-id])
-                                 "#minus"
-                                 "#plus"
-                                )
+                           (if shift-key
+                             "#tag"
+                             (if (find-dep state [start-id end-id])
+                               "#minus"
+                               "#plus"
+                              )
+                             )
                            )
                          (when end-cluster-id
                                (if (inside-cluster? (:clusters state) start-node end-cluster-id)
@@ -1107,11 +1112,12 @@
                                :left (str (+ 13 (:x end)) "px")
                                :width "18px"
                                :height "18px"
-                               :fill (if (= icon "#plus") "green" "red")
+                               :fill ({"#plus" "green" "#minus" "red" "#tag" "green"} icon)
                                }}
                     ;This is kinda lame, but if we just have 1 use tag and switch the href, React tries to update just the href attribute which is read-only
                     [:use {:href "#plus" :style (if (not= icon "#plus") {:display "none"} {})}]
                     [:use {:href "#minus" :style (if (not= icon "#minus") {:display "none"} {})}]
+                    [:use {:href "#tag" :style (if (not= icon "#tag") {:display "none"} {})}]
                  ]))
            )
           ; Arrow when dragging from node (plus node outline if cursor is on blank area)
