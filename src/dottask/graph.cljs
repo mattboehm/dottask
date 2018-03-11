@@ -52,6 +52,7 @@
     ;:resize-points {:x {:min 162, :max 326}, :y {:min -452, :max -316}}
     :preview-points nil ;while dragging from a node, the start/end point of the drag. Used to show a preview of the action being taken (link/unlink, new node above/below, add/remove from cluster)
     :edit-node-id nil ;node whose text is currently being edited
+    :connected-nodes #{}
   }))
 ;; Save/Load state
   ;keys of app-state to save in the hash. the rest can be computed from this.
@@ -299,17 +300,6 @@
   (defn recluster-node [state node-id cluster-id]
     (update-node state node-id #(assoc % :cluster-id cluster-id))
    )
-  ; prompt a user for a new name and if they provide one, rename the node to that.
-  (defn rename-prompt [state node-id]
-    (let [node (core/get-node (:nodes state) node-id)
-          new-name (core/prompt "Enter new name" (:text node))
-          ]
-      (if new-name
-        (rename-node state node-id new-name)
-        state
-       )
-     )
-   )
   (defn select-node [state node-id]
     (assoc state :selected-node-id node-id)
    )
@@ -381,9 +371,6 @@
          )
        )
      )
-   )
-  (defn add-nodes [state labels]
-   (reduce #(add-node %1 [] [] %2) state labels) 
    )
   (defn inside-cluster? [clusters child parent-id]
     (cond
@@ -719,40 +706,6 @@
       new-state
       )
     )
-;; Dom rendering
-  (defn modal [is-visible? close! options contents]
-    [:div {
-           :on-click (fn [e] (when (classlist/contains (.-target e) "modal-backdrop") (close!)))
-           :class (str "modal-backdrop" (if (is-visible?) "" " hidden"))}
-      [:div {:class (str "modal " (:class options ""))}
-        [:span {:class "x-button" :on-click close!} "×"]
-        contents
-       ] 
-     ]
-   )
-  (defn keyed-modal [state modal-key options contents]
-    (modal
-      (fn [] (modal-key @state))
-      (core/toggler state modal-key)
-      options
-      contents
-     )
-   )
-  (defn text-area [value attrs]
-    [:textarea (merge {
-           :rows 20
-           :value @value
-           :on-change #(reset! value (-> % .-target .-value))} attrs)])
-  (defn icon
-    ([name size]
-     (icon name size {})
-     )
-    ([name size style]
-    [:svg {:style (merge {:width size :height size} style)} [:use {:href (str "#" name)}]]
-    ))
-  (defn btn [opts contents]
-    [:span (merge {:class "button"} opts) contents]
-    )
   ;; Bulk add
     (defn parse-line [index line]
       (let [clean (clojure.string/triml line)
@@ -887,7 +840,7 @@
       (let [bulk-text (reagent/atom ""); the text in the textbox
             mode (reagent/atom "")]; how to handle indentation. See parse-bulk-add for a description of the modes
         (fn []
-          (keyed-modal ui-state :bulk-add-modal-visible? {:class "bulk-modal"}
+          (core/keyed-modal ui-state :bulk-add-modal-visible? {:class "bulk-modal"}
             [:div
               [:div {:class "modal-title"} "Bulk Add"]
               [:div "Add a line of text for each node you want created " [core/a-link "bulk-add" "help" (fn [] (swap! ui-state assoc :help-visible? true))]]
@@ -898,7 +851,7 @@
                 [:option {:value "cluster"} "cluster"]
                 [:option {:value "graphviz"} "graphviz"]
                ]
-              [text-area bulk-text {}]
+              [core/text-area bulk-text {}]
               [:div {:class "modal-buttons"}
                 [:button
                  {
@@ -918,26 +871,29 @@
           )
        )
      )
+  (defn toolbar [state]
+    [:div {:class "button-bar"}
+      [core/btn {:title "Add node" :data-help-link "add-card" :on-click #((rerender! add-node) [] [])} [core/icon "plus" "30px"]]
+      [core/btn {:title "Bulk add" :data-help-link "bulk-add" :on-click (core/toggler ui-state :bulk-add-modal-visible?)} [core/icon "list-alt" "30px"]]
+      [core/btn {:title "Delete all" :data-help-link "delete-all" :on-click #((rerender! delete-all))} [core/icon "trash" "30px"]]
+      [core/btn {:title "Save" :data-help-link "saving" :on-click #(save-hash state)} [core/icon "save" "30px"]]
+      [core/btn {:title "Undo" :data-help-link "undo-button" :on-click hist/undo! :style (when-not (hist/can-undo?) {:cursor "default" :opacity "0.3"})} [core/icon "undo" "30px"]]
+      [core/btn {:title "Redo" :data-help-link "undo-button" :on-click hist/redo! :style (when-not (hist/can-redo?) {:cursor "default" :opacity "0.3"})} [core/icon "undo" "30px" {:transform "scale(-1, 1)"}]]
+      [:div {:title "Change arrow direction" :class "direction-button" :data-help-link "arrow-dir"}
+        [:select {:class "hidden-select" :value (:label ((:direction state) core/directions)) :on-change #((rerender! set-direction) (keyword (-> % .-target .-value)))} (map (fn [[dirkey dir]] [:option {:key dirkey :value dirkey :on-click #((rerender! set-direction) dirkey)} [core/icon "plus" "16px"](:label dir)]) core/directions)]
+        [core/icon "arrow-circle-up" "30px" {:transform (str "rotate(" (:rotation ((:direction state) core/directions)) ")")}]
+       ]
+      [core/btn {:title "Export to dot format" :data-help-link "export-dot" :on-click #(let [w (js/window.open)] (.write (.-document w) (str "<pre>" (core/hesc (graph->dot (:nodes state) (:deps state) (:clusters state) ((:direction state) core/directions) true)) "</pre>")))} [core/icon "file-code" "30px"]]
+      [core/btn {:title "Help. Try dragging from me to highlighted elements!" :on-mouse-down help-mousedown :on-click (core/toggler ui-state :help-visible?)} [core/icon "question" "30px"]]
+     ]
+    )
   (defn graph [state]
     (let [[_ x-offset y-offset]
           (map js/parseInt (re-find #"translate\(([\d.]+) ([\d.]+)\)" (:svg state)))
           ]
       [:div
         {:class (when (:help-drag @ui-state) " help-drag") :on-key-press #(.log js/console %)}
-        [:div {:class "button-bar"}
-          [btn {:title "Add node" :data-help-link "add-card" :on-click #((rerender! add-node) [] [])} [icon "plus" "30px"]]
-          [btn {:title "Bulk add" :data-help-link "bulk-add" :on-click (core/toggler ui-state :bulk-add-modal-visible?)} [icon "list-alt" "30px"]]
-          [btn {:title "Delete all" :data-help-link "delete-all" :on-click #((rerender! delete-all))} [icon "trash" "30px"]]
-          [btn {:title "Save" :data-help-link "saving" :on-click #(save-hash state)} [icon "save" "30px"]]
-          [btn {:title "Undo" :data-help-link "undo-button" :on-click hist/undo! :style (when-not (hist/can-undo?) {:cursor "default" :opacity "0.3"})} [icon "undo" "30px"]]
-          [btn {:title "Redo" :data-help-link "undo-button" :on-click hist/redo! :style (when-not (hist/can-redo?) {:cursor "default" :opacity "0.3"})} [icon "undo" "30px" {:transform "scale(-1, 1)"}]]
-          [:div {:title "Change arrow direction" :class "direction-button" :data-help-link "arrow-dir"}
-            [:select {:class "hidden-select" :value (:label ((:direction state) core/directions)) :on-change #((rerender! set-direction) (keyword (-> % .-target .-value)))} (map (fn [[dirkey dir]] [:option {:key dirkey :value dirkey :on-click #((rerender! set-direction) dirkey)} [icon "plus" "16px"](:label dir)]) core/directions)]
-            [icon "arrow-circle-up" "30px" {:transform (str "rotate(" (:rotation ((:direction state) core/directions)) ")")}]
-           ]
-          [btn {:title "Export to dot format" :data-help-link "export-dot" :on-click #(let [w (js/window.open)] (.write (.-document w) (str "<pre>" (core/hesc (graph->dot (:nodes state) (:deps state) (:clusters state) ((:direction state) core/directions) true)) "</pre>")))} [icon "file-code" "30px"]]
-          [btn {:title "Help. Try dragging from me to highlighted elements!" :on-mouse-down help-mousedown :on-click (core/toggler ui-state :help-visible?)} [icon "question" "30px"]]
-         ]
+        [toolbar state]
         [:div {:class (str "help-window" (when-not (:help-visible? @ui-state) " hidden")) :style {:position "fixed" :right "0px" :width "35%" :height "100%" :z-index "99999" :background-color "#f6f6f6" :padding "10px" :box-shadow "0 0 8px 2px #666" :border "1px solid #666"}} 
          [:div {:style {:position "relative" :width "100%" :text-align "right" :padding-right "20px"}}
            [:a {:href "./help.html" :target "_blank" :on-click (core/toggler ui-state :help-visible?)} "Pop out"]
@@ -976,7 +932,7 @@
               (fn [node]
                 ;We draw divs on top of where the nodes are in the graphviz svg so that we can do more advanced styling/functionality
                 ;Collapsed clusters are also turned into nodes. They have different styling and can be differentiated by a truthy :cluster value
-                [:div {:class (str "node-overlay" (when (= (:id node) (:selected-node-id state)) " selected") (when (:cluster node) " cluster-node")) 
+                [:div {:class (str "node-overlay" (when (= (:id node) (:selected-node-id state)) " selected") (when (:cluster node) " cluster-node") (when (contains? (:connected-nodes state) (:id node)) " connected")) 
                        :key (:id node)
                        ;When cluster nodes are clicked on, expand the cluster
                        :on-click (when (:cluster node) #((rerender! (fn [state] (assoc-in state [:clusters (:id node) :collapsed] false )))))
@@ -987,6 +943,8 @@
                        ;On mouse down/ touch start, set things up so that when the user stops dragging, we can add the link/node
                        :on-mouse-down (when (:node node) #(node-mousedown % (:direction state)))
                        :on-touch-start (when (:node node) #(node-mousedown % (:direction state)))
+                       :on-mouse-enter (fn [e] (when (.-shiftKey e) (swap! app-state assoc :connected-nodes (->> (:deps state) (core/debug) (filter #(contains? (->> (subvec % 0 2) (apply hash-set)) (:id node))) (core/debug) (apply concat) (apply hash-set) (core/debug)))))
+                       :on-mouse-leave #(when-not (empty? (:connected-nodes state)) (swap! app-state assoc :connected-nodes #{}))
                        :style {
                          :left (str (+ x-offset (get-in node [:points :x :min])) "px")
                          :top (str (+ y-offset (get-in node [:points :y :min])) "px")
@@ -1166,7 +1124,7 @@
             [:div {:class "edit-overlay"
                    :on-click (fn [e] (edit-done! edit-id @node-text))
                    }
-                [text-area node-text {:on-click (fn [e] false)
+                [core/text-area node-text {:on-click (fn [e] false)
                             :on-key-down (fn [e]
                                            (if (contains? #{13 27} (.-which e))
                                              (edit-done! edit-id @node-text) ;enter/escape saves changes
@@ -1233,11 +1191,12 @@
       (.getElementById js/document "app")))
 
   ;the first time the page loads, load the app state from the url hash
-  (defonce on-page-load (do 
+  (defn on-page-load! []
     (devtools/enable-feature! :sanity-hints)
     (devtools/install!)
     (swap! app-state load-hash)
-   ))
+   )
+  (defonce on-page-load (on-page-load!))
 
   ;whenever the app state changes, render the whole page
   (add-watch app-state :on-change (fn [_ _ _ _] (render!)))

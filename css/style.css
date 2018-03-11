@@ -148,6 +148,9 @@ div:hover>span.collapse{
 .node-overlay.selected {
 	box-shadow: 0 0 1px 2.5px #FF4;
 }
+.node-overlay.connected {
+	box-shadow: 0 0 4px 1px #88F !important;
+}
 .node-overlay.cluster-node {
 	cursor: zoom-in;
 	border-radius: 20px;
