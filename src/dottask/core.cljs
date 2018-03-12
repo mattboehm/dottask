@@ -95,6 +95,9 @@
        )
      )
    )
+  (defn vmap [& args]
+    (into [] (apply map args))
+    )
   (defn hesc [text] ;escape html
     (.getTypedStringValue (shtml/htmlEscape text))
    )
@@ -140,6 +143,8 @@
       :height (or (:height node) 1.2)
       )
    )
+  (defn node-in-link? [node-id link]
+    (contains? (->> (subvec link 0 2) (apply hash-set)) node-id))
   (defn get-el [selector]
     (.querySelector js/document selector)
     )

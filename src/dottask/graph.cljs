@@ -372,6 +372,17 @@
        )
      )
    )
+  (defn clone-node [state node-id]
+    (let [node (core/get-node (:nodes state) node-id)
+          new-node-id (str "node" (:id-counter state))
+          new-node (assoc node :id new-node-id)
+          sub (fn [id] (if (= id node-id) new-node-id id))
+          new-deps (->> (:deps state)
+                        (filter (partial core/node-in-link? node-id))
+                        (map #(into (core/vmap sub (take 2 %)) (drop 2 %)))
+                     )
+          ]
+      (core/debug (assoc state :nodes (conj (:nodes state) new-node) :deps (into (:deps state) new-deps) :id-counter (inc (:id-counter state))))))
   (defn inside-cluster? [clusters child parent-id]
     (cond
       (nil? (:cluster-id child)) false
@@ -552,13 +563,14 @@
   ;creates new node, splits node, toggles link, or toggles clustering depending on the target
   (defn node-mouseup [src-node-id src-coords direction move-key]
     (fn [e]
-      (swap! ui-state (fn [state] (assoc state :preview-points nil)))
+      (swap! ui-state assoc :preview-points nil)
       (when move-key (events/unlistenByKey move-key))
       (let [
             node-id (core/el->nodeid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
             cluster-id (core/el->clusterid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
             tgt-coords (core/coords e)
             shift-key (.-shiftKey e)
+            alt-key (.-altKey e)
             ]
         (cond 
           ;On a node that's not a collapsed cluster. link to it.
@@ -568,33 +580,56 @@
           cluster-id
             ((rerender! toggle-node-cluster) src-node-id cluster-id) 
           ;On blank space. Add a new node before/after if the drag target is before/after the source
+          alt-key
+            ((rerender! clone-node) src-node-id)
           :else
             ((rerender! add-or-split-node) src-node-id (core/compare-coords tgt-coords src-coords (direction core/directions)) shift-key)
          )
        )
      )
    )
+  (defn edit-node! [node-id]
+    (swap! ui-state assoc :edit-node-id node-id)
+    (let [textbox (.querySelector js/document ".edit-overlay textarea")]
+      (js/setTimeout (fn [] (.focus textbox)))
+      (js/setTimeout (fn [] (.select textbox)))
+     )
+   )
+  (defn add-and-name-node! [state befores afters cluster-id]
+    (let [[new-state new-id] (add-node state befores afters "" true)]
+      (edit-node! new-id)
+      (if cluster-id
+        (recluster-node new-state new-id cluster-id)
+        new-state
+       )
+      )
+    )
   ;when a user lifts their mouse after dragging from a cluster
-  (defn cluster-mouseup [src-cluster-id shift-key]
-    (fn [e]
-      (let [
-            node-id (core/el->nodeid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
-            cluster-id (core/el->clusterid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
-            ]
-        (if node-id
-          ;target is a nede; put that node inside this cluster
-          ((rerender! toggle-node-cluster) node-id src-cluster-id) 
-          (when (not= cluster-id src-cluster-id);do nothing if on the same cluster the drag started on
-            (if cluster-id
-              ;on a different cluster, nest this one inside it
-              ((rerender! toggle-cluster-nesting) src-cluster-id cluster-id)
-               ;If not on a node/cluster, make a new node/cluster outside of this one
-              ((rerender! outer-cluster-prompt) src-cluster-id)
+  (defn cluster-mouseup [src-cluster-id down-event]
+    (let [src-y (.-clientY down-event)]
+      (fn [e]
+        (let [
+              node-id (core/el->nodeid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
+              cluster-id (core/el->clusterid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
+              ;shift-key (.-shiftKey down-event)
+              ]
+          (if node-id
+            ;target is a nede; put that node inside this cluster
+            ((rerender! toggle-node-cluster) node-id src-cluster-id) 
+            (when (not= cluster-id src-cluster-id);do nothing if on the same cluster the drag started on
+              (if cluster-id
+                ;on a different cluster, nest this one inside it
+                ((rerender! toggle-cluster-nesting) src-cluster-id cluster-id)
+                 ;If not on a node/cluster, make a new node/cluster outside of this one
+                (if (< (.-clientY e) src-y)
+                  ((rerender! outer-cluster-prompt) src-cluster-id)
+                  ((rerender! add-and-name-node!) [] [] src-cluster-id)
+                 )
+               )
              )
            )
          )
-       )
-     )
+     ))
    )
   (defn resize-mouse [target move-key]
     ;This function is called when the user is dragging/releasing the mouse after clicking the resize handle
@@ -615,7 +650,7 @@
           (do 
             (events/unlistenByKey move-key)
             ((rerender! resize-node) node-id width height)
-            (swap! ui-state (fn [state] (assoc state :resize-points nil :resize-label "")))
+            (swap! ui-state assoc :resize-points nil :resize-label "")
            )
           ;Mouse dragged: udpate the size of the resize placeholder
           (swap! ui-state (fn [state] (-> state (assoc-in [:resize-points :x :max] (+ width (get-in state [:resize-points :x :min]))) (assoc-in [:resize-points :y :max] (+ height (get-in state [:resize-points :y :min]))))))
@@ -640,6 +675,7 @@
           (swap! ui-state (fn [state] (->
                                         state
                                         (assoc-in [:preview-points :shift-key] (.-shiftKey e))
+                                        (assoc-in [:preview-points :alt-key] (.-altKey e))
                                         (assoc-in [:preview-points :end] (graph-coords target e))
                                         (assoc-in [:preview-points :end-node-id] node-id)
                                         (assoc-in [:preview-points :end-cluster-id] cluster-id))))
@@ -660,21 +696,23 @@
     (events/listenOnce js/window EventType.MOUSEUP help-mouseup)
     (swap! ui-state assoc :help-drag true)
     )
-  (defn node-mousedown [e direction]
+  ;ui-state is the atom
+  (defn node-mousedown [e state ui-state]
     (when (= (.-button e) 0 )
       (let [target (.-target e)
             node-id (core/el->nodeid target)
-            gnode (core/get-node (:gnodes @app-state) node-id)
+            gnode (core/get-node (:gnodes state) node-id)
+            direction (:direction state)
             ]
         (if (classlist/contains (.-target e) "node-resize")
           (let [move-key (events/listen js/window EventType.MOUSEMOVE (resize-mouse (.-target e) nil))] ;draw a preview of the resized node and register the handler for when the mouse is lifted
 
-            (swap! ui-state (fn [state] (assoc state :resize-points (:points gnode) :resize-label (get-in gnode [:node :text]))))
+            (swap! ui-state assoc :resize-points (:points gnode) :resize-label (get-in gnode [:node :text]))
             (events/listenOnce js/window EventType.MOUSEUP (resize-mouse target move-key))
            )
           (let [move-key (events/listen js/window EventType.MOUSEMOVE (link-preview (.-target e)))
                 start-point (graph-coords target e)]
-            (swap! ui-state (fn [state] (assoc state :preview-points {:start start-point :end start-point :start-node-id node-id :end-node-id node-id})))
+            (swap! ui-state assoc :preview-points {:start start-point :end start-point :start-node-id node-id :end-node-id node-id})
             (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (node-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (core/coords e) direction move-key))
            )
          )
@@ -682,14 +720,7 @@
      )
    )
   (defn cluster-mousedown [e]
-    (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (cluster-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "cluster-overlay") "data-clusterid") (.-shiftKey e)))
-   )
-  (defn edit-node! [node-id]
-    (swap! ui-state (fn [state] (assoc state :edit-node-id node-id)))
-    (let [textbox (.querySelector js/document ".edit-overlay textarea")]
-      (js/setTimeout (fn [] (.focus textbox)))
-      (js/setTimeout (fn [] (.select textbox)))
-     )
+    (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (cluster-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "cluster-overlay") "data-clusterid") e))
    )
   (defn edit-done! 
     ([node-id text]
@@ -699,12 +730,6 @@
       (edit-node! select-id)
       ((rerender! rename-node) node-id text)
      )
-    )
-  (defn add-and-name-node! [state befores afters]
-    (let [[new-state new-id] (add-node state befores afters "" true)]
-      (edit-node! new-id)
-      new-state
-      )
     )
   ;; Bulk add
     (defn parse-line [index line]
@@ -836,14 +861,14 @@
          )
        )
      )
-    (defn bulk-add-modal []
+    (defn bulk-add-modal [ui-state]
       (let [bulk-text (reagent/atom ""); the text in the textbox
             mode (reagent/atom "")]; how to handle indentation. See parse-bulk-add for a description of the modes
         (fn []
           (core/keyed-modal ui-state :bulk-add-modal-visible? {:class "bulk-modal"}
             [:div
               [:div {:class "modal-title"} "Bulk Add"]
-              [:div "Add a line of text for each node you want created " [core/a-link "bulk-add" "help" (fn [] (swap! ui-state assoc :help-visible? true))]]
+              [:div "Add a line of text for each node you want created " [core/a-link "bulk-add" "help" #(swap! ui-state assoc :help-visible? true)]]
               
               [:select {:value @mode :on-change #(reset! mode (-> % .-target .-value))}
                 [:option {:value "ignore"} "ignore"]
@@ -871,7 +896,7 @@
           )
        )
      )
-  (defn toolbar [state]
+  (defn toolbar [state ui-state]
     [:div {:class "button-bar"}
       [core/btn {:title "Add node" :data-help-link "add-card" :on-click #((rerender! add-node) [] [])} [core/icon "plus" "30px"]]
       [core/btn {:title "Bulk add" :data-help-link "bulk-add" :on-click (core/toggler ui-state :bulk-add-modal-visible?)} [core/icon "list-alt" "30px"]]
@@ -893,7 +918,7 @@
           ]
       [:div
         {:class (when (:help-drag @ui-state) " help-drag") :on-key-press #(.log js/console %)}
-        [toolbar state]
+        [toolbar state ui-state]
         [:div {:class (str "help-window" (when-not (:help-visible? @ui-state) " hidden")) :style {:position "fixed" :right "0px" :width "35%" :height "100%" :z-index "99999" :background-color "#f6f6f6" :padding "10px" :box-shadow "0 0 8px 2px #666" :border "1px solid #666"}} 
          [:div {:style {:position "relative" :width "100%" :text-align "right" :padding-right "20px"}}
            [:a {:href "./help.html" :target "_blank" :on-click (core/toggler ui-state :help-visible?)} "Pop out"]
@@ -904,7 +929,7 @@
              [help/page help/dottask-help]
             ]
          ]
-        [bulk-add-modal]
+        [bulk-add-modal ui-state]
         [:div {:class (str "dotgraph" (when (:edit-node-id @ui-state) " editing") )
                ;:on-click #(when (= (.-nodeName (.-target %)) "polygon") ((rerender! add-node) [] []))
                }
@@ -941,9 +966,9 @@
                        ;Store the node ID as a dom attribute so event handlers can extract it later
                        :data-nodeid (:id node)
                        ;On mouse down/ touch start, set things up so that when the user stops dragging, we can add the link/node
-                       :on-mouse-down (when (:node node) #(node-mousedown % (:direction state)))
-                       :on-touch-start (when (:node node) #(node-mousedown % (:direction state)))
-                       :on-mouse-enter (fn [e] (when (.-shiftKey e) (swap! app-state assoc :connected-nodes (->> (:deps state) (core/debug) (filter #(contains? (->> (subvec % 0 2) (apply hash-set)) (:id node))) (core/debug) (apply concat) (apply hash-set) (core/debug)))))
+                       :on-mouse-down (when (:node node) #(node-mousedown % state ui-state))
+                       :on-touch-start (when (:node node) #(node-mousedown % state ui-state))
+                       :on-mouse-enter (fn [e] (when (.-shiftKey e) (swap! app-state assoc :connected-nodes (->> (:deps state) (core/debug) (filter (partial core/node-in-link? (:id node))) (core/debug) (apply concat) (apply hash-set) (core/debug)))))
                        :on-mouse-leave #(when-not (empty? (:connected-nodes state)) (swap! app-state assoc :connected-nodes #{}))
                        :style {
                          :left (str (+ x-offset (get-in node [:points :x :min])) "px")
@@ -1082,9 +1107,7 @@
           (when (:preview-points @ui-state)
             [:svg {:class "link-preview"}
                (let [points (:preview-points @ui-state)
-                     {start :start end :end start-id :start-node-id end-id :end-node-id end-cluster-id :end-cluster-id} (:preview-points @ui-state)
-                     rise (- (:y end) (:y start))
-                     run (- (:x end) (:x start))
+                     {start :start end :end start-id :start-node-id end-id :end-node-id end-cluster-id :end-cluster-id alt-key :alt-key} (:preview-points @ui-state)
                      color "#666"
                      ;point to source node if we're on blank space and above our start point
                      point-backwards? (and (not (or end-id end-cluster-id)) (= :before (core/compare-coords end start ((:direction state) core/directions))))
@@ -1097,7 +1120,11 @@
                      ]
                 [:g {:class "edge pv-line"}
                  ;if on empty space, draw rectangle for placeholder node
-                 (when-not (or end-id end-cluster-id) [:rect {:x (- (:x end) 72) :y (- (:y end) 43) :width 144 :height 86 :stroke color :stroke-width 2 :stroke-dasharray "8,4" :fill "none"}])
+                 (when-not (or end-id end-cluster-id)
+                   [:g {:transform (str "translate(" (:x end) " " (:y end) ")")}
+                    [:rect {:x -72 :y -43 :width 144 :height 86 :stroke color :stroke-width 2 :stroke-dasharray "8,4" :fill "none"}]
+                    (when alt-key [:g {:transform "translate(24 -37) scale(0.02)" :fill "#666"} [:use {:href "#clone"}]])
+                    ])
                  ;preview link line
                  [:line {:stroke color :x1 (:x start) :y1 (:y start) :x2 (:x end) :y2 (:y end)}]
                  ;arrow head (when not on same node we started on)
@@ -1174,9 +1201,9 @@
           ;n
           78 ((rerender! add-node) [] [] (core/prompt "Enter title for node:" ""))
           ;,/<
-          188 (when shift ((rerender! add-and-name-node!) [] [selected]))
+          188 (when shift ((rerender! add-and-name-node!) [] [selected] nil))
           ;./>
-          190 (when shift ((rerender! add-and-name-node!) [selected] []))
+          190 (when shift ((rerender! add-and-name-node!) [selected] [] nil))
           ;-
           189 ((rerender! on-toggle-dep-click) selected (if shift (core/prompt "Enter link text:" "") nil))
           ""
