@@ -561,10 +561,10 @@
 ;; Event Handlers
   ;when a user lifts their mouse after dragging from a node
   ;creates new node, splits node, toggles link, or toggles clustering depending on the target
-  (defn node-mouseup [src-node-id src-coords direction move-key]
+  (defn node-mouseup [src-node-id src-coords direction move-keys]
     (fn [e]
       (swap! ui-state assoc :preview-points nil)
-      (when move-key (events/unlistenByKey move-key))
+      (when move-keys (doseq [move-key move-keys] (events/unlistenByKey (core/debug move-key))))
       (let [
             node-id (core/el->nodeid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
             cluster-id (core/el->clusterid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
@@ -574,8 +574,8 @@
             ]
         (cond 
           ;On a node that's not a collapsed cluster. link to it.
-          (and node-id (not= node-id cluster-id)) 
-            (when (not= node-id src-node-id) ((rerender! toggle-dep-clear) [src-node-id node-id (if shift-key (core/prompt "Enter link text:" "") nil)]))
+          (and node-id (or (not= node-id cluster-id) alt-key)) 
+            ((rerender! toggle-dep-clear) [src-node-id node-id (if shift-key (core/prompt "Enter link text:" "") nil)])
           ;On a cluster. add/remove node from cluster
           cluster-id
             ((rerender! toggle-node-cluster) src-node-id cluster-id) 
@@ -631,9 +631,9 @@
          )
      ))
    )
-  (defn resize-mouse [target move-key]
+  (defn resize-mouse [target move-keys]
     ;This function is called when the user is dragging/releasing the mouse after clicking the resize handle
-    ;If this was called on a drag event, move-key will be nil (otherwise it's the ID of an event handler that should be unregistered)
+    ;If this was called on a drag event, move-key will be nil (otherwise it's a seq of IDs of event handlers that should be unregistered)
     ;While the mouse is dragging, this updates a placeholder's location by swapping ui-state
     ;When the mouse is lifted, this updates the actual node and relays the graph
     (fn [e]
@@ -642,60 +642,59 @@
              bounds (.getBoundingClientRect node)
              ctop (.-top (.getBoundingClientRect container))
              width (max (- (.-clientX e) (.-left bounds)) 35)
-             height (max (- (.-clientY e) (.-top bounds)) 35)
-             node-id (core/el->nodeid target)
+            height (max (- (.-clientY e) (.-top bounds)) 35)
+            node-id (core/el->nodeid target)
             ]
-        (if move-key
+        (if move-keys
           ;Mouse lifted: update actual node and clear the resize placeholder
           (do 
-            (events/unlistenByKey move-key)
+            (doseq [key move-keys] (events/unlistenByKey key))
             ((rerender! resize-node) node-id width height)
             (swap! ui-state assoc :resize-points nil :resize-label "")
-           )
+            )
           ;Mouse dragged: udpate the size of the resize placeholder
           (swap! ui-state (fn [state] (-> state (assoc-in [:resize-points :x :max] (+ width (get-in state [:resize-points :x :min]))) (assoc-in [:resize-points :y :max] (+ height (get-in state [:resize-points :y :min]))))))
-         )
-       )
-     )
-   )
-  (defn graph-coords [target e]
-      (let [ container (dom/getAncestorByClass target "dotgraph")
-             bounds (.getBoundingClientRect container)
-            ]
-        {:x (- (.-clientX e) (.-left bounds))
-         :y (- (.-clientY e) (.-top bounds))}
+          )
         )
-    )
-  (defn link-preview [target]
-    (fn [e] 
-        (let [
-              node-id (core/el->nodeid (.-target e))
-              cluster-id (core/el->clusterid (.-target e))
-              ]
-          (swap! ui-state (fn [state] (->
-                                        state
-                                        (assoc-in [:preview-points :shift-key] (.-shiftKey e))
-                                        (assoc-in [:preview-points :alt-key] (.-altKey e))
-                                        (assoc-in [:preview-points :end] (graph-coords target e))
-                                        (assoc-in [:preview-points :end-node-id] node-id)
-                                        (assoc-in [:preview-points :end-cluster-id] cluster-id))))
-         )
       )
     )
+(defn graph-coords [target e]
+  (let [ container (dom/getAncestorByClass target "dotgraph")
+        bounds (.getBoundingClientRect container)
+        ]
+    {:x (- (.-clientX e) (.-left bounds))
+     :y (- (.-clientY e) (.-top bounds))}
+    )
+  )
+(defn link-preview [target]
+  (fn [e] 
+    (let [
+          node-id (core/el->nodeid (.-target e))
+          cluster-id (core/el->clusterid (.-target e))
+          ]
+      (swap! ui-state (fn [state] (->
+                                    state
+                                    (assoc-in [:preview-points :shift-key] (.-shiftKey e))
+                                    (assoc-in [:preview-points :alt-key] (.-altKey e))
+                                    (assoc-in [:preview-points :end] (graph-coords target e))
+                                    (assoc-in [:preview-points :end-node-id] node-id)
+                                    (assoc-in [:preview-points :end-cluster-id] cluster-id))))
+      )
+    )
+  )
   (defn help-mouseup [e]
     (swap! ui-state assoc :help-drag false)
     (let [help-node (dom/getAncestor (.-target e) #(and (.-hasAttribute %) (.hasAttribute % "data-help-link")) true)]
       (when help-node
         (swap! ui-state assoc :help-visible? true)
         (core/jump-to-anchor (.getAttribute help-node "data-help-link"))
-       )
+        )
       )
-    )
+   )
   (defn help-mousedown [e]
-    (.log js/console "down")
-    (events/listenOnce js/window EventType.MOUSEUP help-mouseup)
+    (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) help-mouseup)
     (swap! ui-state assoc :help-drag true)
-    )
+   )
   ;ui-state is the atom
   (defn node-mousedown [e state ui-state]
     (when (= (.-button e) 0 )
@@ -705,15 +704,15 @@
             direction (:direction state)
             ]
         (if (classlist/contains (.-target e) "node-resize")
-          (let [move-key (events/listen js/window EventType.MOUSEMOVE (resize-mouse (.-target e) nil))] ;draw a preview of the resized node and register the handler for when the mouse is lifted
+          (let [move-keys (core/vmap #(events/listen js/window % (resize-mouse (.-target e) nil)) [EventType.MOUSEMOVE EventType.TOUCHMOVE])] ;draw a preview of the resized node and register the handler for when the mouse is lifted
 
-            (swap! ui-state assoc :resize-points (:points gnode) :resize-label (get-in gnode [:node :text]))
-            (events/listenOnce js/window EventType.MOUSEUP (resize-mouse target move-key))
-           )
-          (let [move-key (events/listen js/window EventType.MOUSEMOVE (link-preview (.-target e)))
+              (swap! ui-state assoc :resize-points (:points gnode) :resize-label (get-in gnode [:node :text]))
+              (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (resize-mouse target move-keys))
+             )
+          (let [move-keys (core/vmap #(events/listen js/window % (link-preview (.-target e))) [EventType.MOUSEMOVE EventType.TOUCHMOVE])
                 start-point (graph-coords target e)]
             (swap! ui-state assoc :preview-points {:start start-point :end start-point :start-node-id node-id :end-node-id node-id})
-            (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (node-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (core/coords e) direction move-key))
+            (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (node-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (core/coords e) direction move-keys))
            )
          )
        )
@@ -909,7 +908,7 @@
         [core/icon "arrow-circle-up" "30px" {:transform (str "rotate(" (:rotation ((:direction state) core/directions)) ")")}]
        ]
       [core/btn {:title "Export to dot format" :data-help-link "export-dot" :on-click #(let [w (js/window.open)] (.write (.-document w) (str "<pre>" (core/hesc (graph->dot (:nodes state) (:deps state) (:clusters state) ((:direction state) core/directions) true)) "</pre>")))} [core/icon "file-code" "30px"]]
-      [core/btn {:title "Help. Try dragging from me to highlighted elements!" :on-mouse-down help-mousedown :on-click (core/toggler ui-state :help-visible?)} [core/icon "question" "30px"]]
+      [core/btn {:title "Help. Try dragging from me to highlighted elements!" :on-touch-start help-mousedown :on-mouse-down help-mousedown :on-click (core/toggler ui-state :help-visible?)} [core/icon "question" "30px"]]
      ]
     )
   (defn graph [state]
@@ -1070,10 +1069,10 @@
           ]
           ; + / - icon by cursor when previewing add/remove link or add to/remove from cluster
           (when (:preview-points @ui-state)
-            (let [{shift-key :shift-key end :end start-id :start-node-id end-id :end-node-id end-cluster-id :end-cluster-id} (:preview-points @ui-state)
+            (let [{shift-key :shift-key alt-key :alt-key end :end start-id :start-node-id end-id :end-node-id end-cluster-id :end-cluster-id} (:preview-points @ui-state)
                   start-node (core/get-node (:nodes state) start-id)
                   icon (or
-                         (when (and end-id (not= end-id start-id))
+                         (when (and end-id (or (not= end-id start-id) alt-key))
                            (if shift-key
                              "#tag"
                              (if (find-dep state [start-id end-id])

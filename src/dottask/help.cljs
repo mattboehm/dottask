@@ -41,7 +41,7 @@
       ]}
     {:id "links" :title "Links" :contents [
       "Cards can be linked together" 
-      {:id "link-card" :title "Link/unlink cards" :contents ["Drag the mouse from the source to the target"]} 
+      {:id "link-card" :title "Link/unlink cards" :contents ["Drag the mouse from the source to the target" "To link a card to itself, hold the alt key down while dragging"]} 
       {:id "link-label" :title "Change link label" :contents ["Hold down shift while dragging from source to target cards"]} 
       ]}
     {:id "card-drag" :title "Add cards via dragging" :contents [
