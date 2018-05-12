@@ -95,6 +95,9 @@
        )
      )
    )
+  (defn vmap [& args]
+    (into [] (apply map args))
+    )
   (defn hesc [text] ;escape html
     (.getTypedStringValue (shtml/htmlEscape text))
    )
@@ -140,22 +143,14 @@
       :height (or (:height node) 1.2)
       )
    )
+  (defn node-in-link? [node-id link]
+    (contains? (->> (subvec link 0 2) (apply hash-set)) node-id))
   (defn get-el [selector]
     (.querySelector js/document selector)
     )
   (defn jump-to-anchor [id]
     (js/setTimeout (fn [] (->> (str "#" id) (get-el) (.scrollIntoView) )) 1)
     )
-  (defn a-link
-    ([id text]
-      (a-link id text nil)
-     )
-    ([id text func]
-    [:a {
-         :href "javascript:"
-         :on-click (fn [] (when func (func)) (jump-to-anchor id))}
-      text]
-    ))
   ;get the node id off of a clicked element. looks it up via the data-nodeid html attribute
   (defn el->nodeid [el]
     (let [node (dom/getAncestorByClass el "node-overlay")
@@ -207,3 +202,47 @@
      )
     
     )
+;; Basic components
+  (defn btn [opts contents]
+    [:span (merge {:class "button"} opts) contents]
+    )
+  (defn icon
+    ([name size]
+     (icon name size {})
+     )
+    ([name size style]
+    [:svg {:style (merge {:width size :height size} style)} [:use {:href (str "#" name)}]]
+    ))
+  (defn modal [is-visible? close! options contents]
+    [:div {
+           :on-click (fn [e] (when (classlist/contains (.-target e) "modal-backdrop") (close!)))
+           :class (str "modal-backdrop" (if (is-visible?) "" " hidden"))}
+      [:div {:class (str "modal " (:class options ""))}
+        [:span {:class "x-button" :on-click close!} "×"]
+        contents
+       ] 
+     ]
+   )
+  (defn keyed-modal [state modal-key options contents]
+    (modal
+      (fn [] (modal-key @state))
+      (toggler state modal-key)
+      options
+      contents
+     )
+   )
+  (defn text-area [value attrs]
+    [:textarea (merge {
+           :rows 20
+           :value @value
+           :on-change #(reset! value (-> % .-target .-value))} attrs)])
+  (defn a-link
+    ([id text]
+      (a-link id text nil)
+     )
+    ([id text func]
+    [:a {
+         :href "javascript:"
+         :on-click (fn [] (when func (func)) (jump-to-anchor id))}
+      text]
+    ))
