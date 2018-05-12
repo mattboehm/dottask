@@ -37,11 +37,11 @@
       {:id "card-text" :title "Change card text" :contents ["Click on the light box inside the card" "When done editing, hit enter/escape or click on the area outside the textbox to save changes. You can also hit tab or shift-tab to switch to the next/previous card."]}
       {:id "card-color" :title "Change card color" :contents ["Hover over it and click a colored square in the right panel"]}
       {:id "card-resize" :title "Resize a card" :contents ["Drag the handle in the lower-right corner"]}
-
+      {:id "card-clone" :title "Clone a card" :contents ["Hold down alt and drag from a card to a blank space. This makes a duplicate card with the same text/color/size/links/cluster"]}
       ]}
     {:id "links" :title "Links" :contents [
       "Cards can be linked together" 
-      {:id "link-card" :title "Link/unlink cards" :contents ["Drag the mouse from the source to the target"]} 
+      {:id "link-card" :title "Link/unlink cards" :contents ["Drag the mouse from the source to the target" "To link a card to itself, hold the alt key down while dragging"]} 
       {:id "link-label" :title "Change link label" :contents ["Hold down shift while dragging from source to target cards"]} 
       ]}
     {:id "card-drag" :title "Add cards via dragging" :contents [
