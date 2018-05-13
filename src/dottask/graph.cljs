@@ -566,9 +566,9 @@
       (swap! ui-state assoc :preview-points nil)
       (when move-keys (doseq [move-key move-keys] (events/unlistenByKey (core/debug move-key))))
       (let [
-            node-id (core/el->nodeid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
-            cluster-id (core/el->clusterid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
             tgt-coords (core/coords e)
+            node-id (core/el->nodeid (.elementFromPoint js/document (:x tgt-coords) (:y tgt-coords)))
+            cluster-id (core/el->clusterid (.elementFromPoint js/document (:x tgt-coords) (:y tgt-coords)))
             shift-key (.-shiftKey e)
             alt-key (.-altKey e)
             ]
@@ -609,8 +609,9 @@
     (let [src-y (.-clientY down-event)]
       (fn [e]
         (let [
-              node-id (core/el->nodeid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
-              cluster-id (core/el->clusterid (.elementFromPoint js/document (.-clientX e) (.-clientY e)))
+              tgt-coords (core/coords e)
+              node-id (core/el->nodeid (.elementFromPoint js/document (:x tgt-coords) (:y tgt-coords)))
+              cluster-id (core/el->clusterid (.elementFromPoint js/document (:x tgt-coords) (:y tgt-coords)))
               ;shift-key (.-shiftKey down-event)
               ]
           (if node-id
@@ -661,24 +662,30 @@
 (defn graph-coords [target e]
   (let [ container (dom/getAncestorByClass target "dotgraph")
         bounds (.getBoundingClientRect container)
+        base (if (number? (.-clientX e)) 
+               e
+               (core/changed-touch e))
         ]
-    {:x (- (.-clientX e) (.-left bounds))
-     :y (- (.-clientY e) (.-top bounds))}
+    {:x (- (.-clientX base) (.-left bounds))
+     :y (- (.-clientY base) (.-top bounds))}
     )
   )
-(defn link-preview [target]
+(defn link-preview [target start-touch-event]
   (fn [e] 
-    (let [
-          node-id (core/el->nodeid (.-target e))
-          cluster-id (core/el->clusterid (.-target e))
-          ]
-      (swap! ui-state (fn [state] (->
-                                    state
-                                    (assoc-in [:preview-points :shift-key] (.-shiftKey e))
-                                    (assoc-in [:preview-points :alt-key] (.-altKey e))
-                                    (assoc-in [:preview-points :end] (graph-coords target e))
-                                    (assoc-in [:preview-points :end-node-id] node-id)
-                                    (assoc-in [:preview-points :end-cluster-id] cluster-id))))
+    (when (or (nil? start-touch-event) (some? (core/changed-touch-by-id (.-event_ e) (.-identifier start-touch-event))))
+      (let [
+            tgt-coords (core/coords e)
+            node-id (core/el->nodeid (.elementFromPoint js/document (:x tgt-coords) (:y tgt-coords)))
+            cluster-id (core/el->clusterid (.elementFromPoint js/document (:x tgt-coords) (:y tgt-coords)))
+            ]
+        (swap! ui-state (fn [state] (->
+                                      state
+                                      (assoc-in [:preview-points :shift-key] (.-shiftKey e))
+                                      (assoc-in [:preview-points :alt-key] (.-altKey e))
+                                      (assoc-in [:preview-points :end] (graph-coords target e))
+                                      (assoc-in [:preview-points :end-node-id] node-id)
+                                      (assoc-in [:preview-points :end-cluster-id] cluster-id))))
+        )
       )
     )
   )
@@ -697,7 +704,7 @@
    )
   ;ui-state is the atom
   (defn node-mousedown [e state ui-state]
-    (when (= (.-button e) 0 )
+    (when (or (= (.-type e) "touchstart") (= (.-button e) 0 ))
       (let [target (.-target e)
             node-id (core/el->nodeid target)
             gnode (core/get-node (:gnodes state) node-id)
