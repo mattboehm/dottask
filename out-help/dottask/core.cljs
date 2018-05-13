@@ -101,15 +101,42 @@
   (defn hesc [text] ;escape html
     (.getTypedStringValue (shtml/htmlEscape text))
    )
-  (defn esc [text] ;escape a string
-    (gstring/escapeString (str text))
+  (defn arraylike-to-seq
+    "some things in js like nodelists and touchlists are not seqable"
+    [arr]
+    (let [result-seq (map #(.item arr %) (range (.-length arr)))]
+      (doall result-seq)))
+    (defn esc [text] ;escape a string
+      (gstring/escapeString (str text))
+     )
+  (defn changed-touch [evt]
+    (if (some? (.-changedTouches evt))
+      (-> evt (.-changedTouches) (aget 0))
+      nil
+      )
+    )
+  (defn changed-touch-by-id [evt id]
+    (if (some? (.-changedTouches evt))
+      (-> evt
+          (.-changedTouches)
+          (arraylike-to-seq)
+          ((partial filter #(= (.-identifier %) id)))
+          (first)
+          )
+      nil
+    )
    )
   ; get mouse coordinates of event
   (defn coords [evt]
-    {
-      :x (.-clientX evt)
-      :y (.-clientY evt)
-     }
+    (let [base (if (number? (.-clientX evt)) 
+                 evt
+                 (changed-touch evt))
+          ]
+      {
+        :x (.-clientX base)
+        :y (.-clientY base)
+       }
+     )
    )
   ;compare two coordinates and return :before/:after
   ;this/other are hash-maps with :x and :y keys

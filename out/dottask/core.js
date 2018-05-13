@@ -114,19 +114,45 @@ return dottask.core.vmap.cljs$core$IFn$_invoke$arity$variadic(cljs.core.seq(seq1
 dottask.core.hesc = (function dottask$core$hesc(text){
 return goog.html.SafeHtml.htmlEscape(text).getTypedStringValue();
 });
+/**
+ * some things in js like nodelists and touchlists are not seqable
+ */
+dottask.core.arraylike_to_seq = (function dottask$core$arraylike_to_seq(arr){
+var result_seq = cljs.core.map.cljs$core$IFn$_invoke$arity$2((function (p1__12303_SHARP_){
+return arr.item(p1__12303_SHARP_);
+}),cljs.core.range.cljs$core$IFn$_invoke$arity$1(arr.length));
+return cljs.core.doall.cljs$core$IFn$_invoke$arity$1(result_seq);
+});
 dottask.core.esc = (function dottask$core$esc(text){
-var G__12304 = [cljs.core.str(text)].join('');
-return goog.string.escapeString(G__12304);
+var G__12305 = [cljs.core.str(text)].join('');
+return goog.string.escapeString(G__12305);
+});
+dottask.core.changed_touch = (function dottask$core$changed_touch(evt){
+if(cljs.core.some_QMARK_(evt.changedTouches)){
+return (evt.changedTouches[(0)]);
+} else {
+return null;
+}
+});
+dottask.core.changed_touch_by_id = (function dottask$core$changed_touch_by_id(evt,id){
+if(cljs.core.some_QMARK_(evt.changedTouches)){
+return cljs.core.first(cljs.core.partial.cljs$core$IFn$_invoke$arity$2(cljs.core.filter,(function (p1__12306_SHARP_){
+return cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(p1__12306_SHARP_.identifier,id);
+})).call(null,dottask.core.arraylike_to_seq(evt.changedTouches)));
+} else {
+return null;
+}
 });
 dottask.core.coords = (function dottask$core$coords(evt){
-return new cljs.core.PersistentArrayMap(null, 2, [cljs.core.cst$kw$x,evt.clientX,cljs.core.cst$kw$y,evt.clientY], null);
+var base = ((typeof evt.clientX === 'number')?evt:dottask.core.changed_touch(evt));
+return new cljs.core.PersistentArrayMap(null, 2, [cljs.core.cst$kw$x,base.clientX,cljs.core.cst$kw$y,base.clientY], null);
 });
 dottask.core.compare_coords = (function dottask$core$compare_coords(this$,other,direction){
 var coord = cljs.core.cst$kw$coord.cljs$core$IFn$_invoke$arity$1(direction);
 var before = cljs.core.cst$kw$before.cljs$core$IFn$_invoke$arity$1(direction);
-if(cljs.core.truth_((function (){var G__12307 = (coord.cljs$core$IFn$_invoke$arity$1 ? coord.cljs$core$IFn$_invoke$arity$1(this$) : coord.call(null,this$));
-var G__12308 = (coord.cljs$core$IFn$_invoke$arity$1 ? coord.cljs$core$IFn$_invoke$arity$1(other) : coord.call(null,other));
-return (before.cljs$core$IFn$_invoke$arity$2 ? before.cljs$core$IFn$_invoke$arity$2(G__12307,G__12308) : before.call(null,G__12307,G__12308));
+if(cljs.core.truth_((function (){var G__12309 = (coord.cljs$core$IFn$_invoke$arity$1 ? coord.cljs$core$IFn$_invoke$arity$1(this$) : coord.call(null,this$));
+var G__12310 = (coord.cljs$core$IFn$_invoke$arity$1 ? coord.cljs$core$IFn$_invoke$arity$1(other) : coord.call(null,other));
+return (before.cljs$core$IFn$_invoke$arity$2 ? before.cljs$core$IFn$_invoke$arity$2(G__12309,G__12310) : before.call(null,G__12309,G__12310));
 })())){
 return cljs.core.cst$kw$before;
 } else {
@@ -141,13 +167,13 @@ return new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMP
 }),hmap));
 });
 dottask.core.get_node = (function dottask$core$get_node(nodes,id){
-return cljs.core.first(cljs.core.filter.cljs$core$IFn$_invoke$arity$2((function (p1__12309_SHARP_){
-return cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(id,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(p1__12309_SHARP_));
+return cljs.core.first(cljs.core.filter.cljs$core$IFn$_invoke$arity$2((function (p1__12311_SHARP_){
+return cljs.core._EQ_.cljs$core$IFn$_invoke$arity$2(id,cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(p1__12311_SHARP_));
 }),nodes));
 });
 dottask.core.get_node_dim = (function dottask$core$get_node_dim(node,dim){
-var G__12311 = (((dim instanceof cljs.core.Keyword))?dim.fqn:null);
-switch (G__12311) {
+var G__12313 = (((dim instanceof cljs.core.Keyword))?dim.fqn:null);
+switch (G__12313) {
 case "width":
 var or__4671__auto__ = cljs.core.cst$kw$width.cljs$core$IFn$_invoke$arity$1(node);
 if(cljs.core.truth_(or__4671__auto__)){
@@ -178,11 +204,11 @@ dottask.core.get_el = (function dottask$core$get_el(selector){
 return document.querySelector(selector);
 });
 dottask.core.jump_to_anchor = (function dottask$core$jump_to_anchor(id){
-var G__12315 = (function (){
+var G__12317 = (function (){
 return dottask.core.get_el([cljs.core.str("#"),cljs.core.str(id)].join('')).scrollIntoView();
 });
-var G__12316 = (1);
-return setTimeout(G__12315,G__12316);
+var G__12318 = (1);
+return setTimeout(G__12317,G__12318);
 });
 dottask.core.el__GT_nodeid = (function dottask$core$el__GT_nodeid(el){
 var node = goog.dom.getAncestorByClass(el,"node-overlay");
@@ -218,29 +244,29 @@ dottask.core.rad__GT_deg = (function dottask$core$rad__GT_deg(rad){
 return ((rad * (180)) / Math.PI);
 });
 dottask.core.get_angle = (function dottask$core$get_angle(start,end){
-return dottask.core.rad__GT_deg((function (){var G__12319 = (cljs.core.cst$kw$y.cljs$core$IFn$_invoke$arity$1(end) - cljs.core.cst$kw$y.cljs$core$IFn$_invoke$arity$1(start));
-var G__12320 = (cljs.core.cst$kw$x.cljs$core$IFn$_invoke$arity$1(end) - cljs.core.cst$kw$x.cljs$core$IFn$_invoke$arity$1(start));
-return Math.atan2(G__12319,G__12320);
+return dottask.core.rad__GT_deg((function (){var G__12321 = (cljs.core.cst$kw$y.cljs$core$IFn$_invoke$arity$1(end) - cljs.core.cst$kw$y.cljs$core$IFn$_invoke$arity$1(start));
+var G__12322 = (cljs.core.cst$kw$x.cljs$core$IFn$_invoke$arity$1(end) - cljs.core.cst$kw$x.cljs$core$IFn$_invoke$arity$1(start));
+return Math.atan2(G__12321,G__12322);
 })());
 });
 dottask.core.polygon_points = (function dottask$core$polygon_points(var_args){
-var args12321 = [];
-var len__5729__auto___12324 = arguments.length;
-var i__5730__auto___12325 = (0);
+var args12323 = [];
+var len__5729__auto___12326 = arguments.length;
+var i__5730__auto___12327 = (0);
 while(true){
-if((i__5730__auto___12325 < len__5729__auto___12324)){
-args12321.push((arguments[i__5730__auto___12325]));
+if((i__5730__auto___12327 < len__5729__auto___12326)){
+args12323.push((arguments[i__5730__auto___12327]));
 
-var G__12326 = (i__5730__auto___12325 + (1));
-i__5730__auto___12325 = G__12326;
+var G__12328 = (i__5730__auto___12327 + (1));
+i__5730__auto___12327 = G__12328;
 continue;
 } else {
 }
 break;
 }
 
-var G__12323 = args12321.length;
-switch (G__12323) {
+var G__12325 = args12323.length;
+switch (G__12325) {
 case 2:
 return dottask.core.polygon_points.cljs$core$IFn$_invoke$arity$2((arguments[(0)]),(arguments[(1)]));
 
@@ -250,7 +276,7 @@ return dottask.core.polygon_points.cljs$core$IFn$_invoke$arity$3((arguments[(0)]
 
 break;
 default:
-throw (new Error([cljs.core.str("Invalid arity: "),cljs.core.str(args12321.length)].join('')));
+throw (new Error([cljs.core.str("Invalid arity: "),cljs.core.str(args12323.length)].join('')));
 
 }
 });
@@ -272,23 +298,23 @@ dottask.core.btn = (function dottask$core$btn(opts,contents){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$span,cljs.core.merge.cljs$core$IFn$_invoke$arity$variadic(cljs.core.array_seq([new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$class,"button"], null),opts], 0)),contents], null);
 });
 dottask.core.icon = (function dottask$core$icon(var_args){
-var args12328 = [];
-var len__5729__auto___12331 = arguments.length;
-var i__5730__auto___12332 = (0);
+var args12330 = [];
+var len__5729__auto___12333 = arguments.length;
+var i__5730__auto___12334 = (0);
 while(true){
-if((i__5730__auto___12332 < len__5729__auto___12331)){
-args12328.push((arguments[i__5730__auto___12332]));
+if((i__5730__auto___12334 < len__5729__auto___12333)){
+args12330.push((arguments[i__5730__auto___12334]));
 
-var G__12333 = (i__5730__auto___12332 + (1));
-i__5730__auto___12332 = G__12333;
+var G__12335 = (i__5730__auto___12334 + (1));
+i__5730__auto___12334 = G__12335;
 continue;
 } else {
 }
 break;
 }
 
-var G__12330 = args12328.length;
-switch (G__12330) {
+var G__12332 = args12330.length;
+switch (G__12332) {
 case 2:
 return dottask.core.icon.cljs$core$IFn$_invoke$arity$2((arguments[(0)]),(arguments[(1)]));
 
@@ -298,7 +324,7 @@ return dottask.core.icon.cljs$core$IFn$_invoke$arity$3((arguments[(0)]),(argumen
 
 break;
 default:
-throw (new Error([cljs.core.str("Invalid arity: "),cljs.core.str(args12328.length)].join('')));
+throw (new Error([cljs.core.str("Invalid arity: "),cljs.core.str(args12330.length)].join('')));
 
 }
 });
@@ -314,9 +340,9 @@ return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMP
 dottask.core.icon.cljs$lang$maxFixedArity = 3;
 dottask.core.modal = (function dottask$core$modal(is_visible_QMARK_,close_BANG_,options,contents){
 return new cljs.core.PersistentVector(null, 3, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$div,new cljs.core.PersistentArrayMap(null, 2, [cljs.core.cst$kw$on_DASH_click,(function (e){
-if(cljs.core.truth_((function (){var G__12337 = e.target;
-var G__12338 = "modal-backdrop";
-return goog.dom.classlist.contains(G__12337,G__12338);
+if(cljs.core.truth_((function (){var G__12339 = e.target;
+var G__12340 = "modal-backdrop";
+return goog.dom.classlist.contains(G__12339,G__12340);
 })())){
 return (close_BANG_.cljs$core$IFn$_invoke$arity$0 ? close_BANG_.cljs$core$IFn$_invoke$arity$0() : close_BANG_.call(null));
 } else {
@@ -326,35 +352,35 @@ return null;
 });
 dottask.core.keyed_modal = (function dottask$core$keyed_modal(state,modal_key,options,contents){
 return dottask.core.modal((function (){
-var G__12340 = (cljs.core.deref.cljs$core$IFn$_invoke$arity$1 ? cljs.core.deref.cljs$core$IFn$_invoke$arity$1(state) : cljs.core.deref.call(null,state));
-return (modal_key.cljs$core$IFn$_invoke$arity$1 ? modal_key.cljs$core$IFn$_invoke$arity$1(G__12340) : modal_key.call(null,G__12340));
+var G__12342 = (cljs.core.deref.cljs$core$IFn$_invoke$arity$1 ? cljs.core.deref.cljs$core$IFn$_invoke$arity$1(state) : cljs.core.deref.call(null,state));
+return (modal_key.cljs$core$IFn$_invoke$arity$1 ? modal_key.cljs$core$IFn$_invoke$arity$1(G__12342) : modal_key.call(null,G__12342));
 }),dottask.core.toggler(state,modal_key),options,contents);
 });
 dottask.core.text_area = (function dottask$core$text_area(value,attrs){
-return new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$textarea,cljs.core.merge.cljs$core$IFn$_invoke$arity$variadic(cljs.core.array_seq([new cljs.core.PersistentArrayMap(null, 3, [cljs.core.cst$kw$rows,(20),cljs.core.cst$kw$value,(cljs.core.deref.cljs$core$IFn$_invoke$arity$1 ? cljs.core.deref.cljs$core$IFn$_invoke$arity$1(value) : cljs.core.deref.call(null,value)),cljs.core.cst$kw$on_DASH_change,(function (p1__12341_SHARP_){
-var G__12344 = value;
-var G__12345 = p1__12341_SHARP_.target.value;
-return (cljs.core.reset_BANG_.cljs$core$IFn$_invoke$arity$2 ? cljs.core.reset_BANG_.cljs$core$IFn$_invoke$arity$2(G__12344,G__12345) : cljs.core.reset_BANG_.call(null,G__12344,G__12345));
+return new cljs.core.PersistentVector(null, 2, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$textarea,cljs.core.merge.cljs$core$IFn$_invoke$arity$variadic(cljs.core.array_seq([new cljs.core.PersistentArrayMap(null, 3, [cljs.core.cst$kw$rows,(20),cljs.core.cst$kw$value,(cljs.core.deref.cljs$core$IFn$_invoke$arity$1 ? cljs.core.deref.cljs$core$IFn$_invoke$arity$1(value) : cljs.core.deref.call(null,value)),cljs.core.cst$kw$on_DASH_change,(function (p1__12343_SHARP_){
+var G__12346 = value;
+var G__12347 = p1__12343_SHARP_.target.value;
+return (cljs.core.reset_BANG_.cljs$core$IFn$_invoke$arity$2 ? cljs.core.reset_BANG_.cljs$core$IFn$_invoke$arity$2(G__12346,G__12347) : cljs.core.reset_BANG_.call(null,G__12346,G__12347));
 })], null),attrs], 0))], null);
 });
 dottask.core.a_link = (function dottask$core$a_link(var_args){
-var args12346 = [];
-var len__5729__auto___12349 = arguments.length;
-var i__5730__auto___12350 = (0);
+var args12348 = [];
+var len__5729__auto___12351 = arguments.length;
+var i__5730__auto___12352 = (0);
 while(true){
-if((i__5730__auto___12350 < len__5729__auto___12349)){
-args12346.push((arguments[i__5730__auto___12350]));
+if((i__5730__auto___12352 < len__5729__auto___12351)){
+args12348.push((arguments[i__5730__auto___12352]));
 
-var G__12351 = (i__5730__auto___12350 + (1));
-i__5730__auto___12350 = G__12351;
+var G__12353 = (i__5730__auto___12352 + (1));
+i__5730__auto___12352 = G__12353;
 continue;
 } else {
 }
 break;
 }
 
-var G__12348 = args12346.length;
-switch (G__12348) {
+var G__12350 = args12348.length;
+switch (G__12350) {
 case 2:
 return dottask.core.a_link.cljs$core$IFn$_invoke$arity$2((arguments[(0)]),(arguments[(1)]));
 
@@ -364,7 +390,7 @@ return dottask.core.a_link.cljs$core$IFn$_invoke$arity$3((arguments[(0)]),(argum
 
 break;
 default:
-throw (new Error([cljs.core.str("Invalid arity: "),cljs.core.str(args12346.length)].join('')));
+throw (new Error([cljs.core.str("Invalid arity: "),cljs.core.str(args12348.length)].join('')));
 
 }
 });
