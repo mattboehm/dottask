@@ -1,3 +1,5 @@
+g.edge.animated>* {transition: 0.4s ease-in;}
+.new-svg>svg>g {transition: transform 0.4s ease-in;}
 .logo {
 	font-size: 36px;
 	font-family: monospace;

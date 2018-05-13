@@ -235,7 +235,82 @@
        }
     )
   )
+  (defn gv_draw->points [draw]
+    (let [dp
+          (first
+            (filter some?
+                    (map :points
+                         draw
+                         )
+                    )
+            )
+          points (->>
+                  dp
+                  ;(map #(let [[x y] %] (str x "," (* -1 y))))
+                  (map #(let [[x y] %] [x (* -1 y)]))
+                  (into [])
+                  )
+          
+          ]
+        points
+      ) )
+  (defn parse-gv [gv]
+    (let [cl (js->clj (.parse js/JSON gv) :keywordize-keys true)
+          edges (:edges cl)
+          [_ _ width height] (clojure.string/split (:bb cl) #",")
+          nodes (filter :shape (:objects cl))
+          node-lookup (->>
+                        nodes
+                        (map (fn [node] [(:_gvid node) (:name node)]))
+                        (apply concat)
+                        (apply hash-map)
+                        (core/debug)
+                        )
+        gedges (map  (fn [edge]
+                     (let [;ppts (gv_draw->points (:_draw_ edge))
+                           ;dp
+                           ;(first
+                             ;(filter some?
+                                     ;(map :points
+                                          ;(:_draw_ edge)
+                                          ;)
+                                     ;)
+                             ;)
+                           ;pfill (->>
+                                   ;dp
+                                   ;(map #(let [[x y] %] (str x "," (* -1 y))))
+                                   ;;(into [])
+                                   ;;(#(str "M" (first %) "C" (clojure.string/join " " (rest %))))
+                                   ;)
+                           
+                           ]
+                       {:head (get node-lookup (:tail edge));gv labels head as where the arrow is. I toggle it as this seems more intuitive
+                        :tail (get node-lookup (:head edge))
+                        :dpts (gv_draw->points (:_draw_ edge))
+                        :hpts (gv_draw->points (:_hdraw_ edge))
+                        
+                        }
+                       ;(assoc edge :dp dp :ppts ppts :pfill pfill)
+                       ;pfill
+                       ;dp
+                       ) 
+                     )
+             (core/debug edges)
+             )]
+      (.log js/console "########1" gv)
+      (.log js/console "########2" cl)
+      (.log js/console "########3" (:edges cl))
+        {:edges gedges
+         :width (+ (js/parseInt width) 8)
+         :height (+ (js/parseInt height) 8)}
+      )
+    )
 
+
+  (defn dot->data [dot]
+    (let [jsn  (js/Viz dot (js-obj "format" "json"))]
+      (parse-gv jsn))
+  )
   (defn dot->svg [dot]
     (string/replace;TODO replacing pt with px globally might be too general
       (js/Viz dot (js-obj "format" "svg"))
@@ -261,6 +336,7 @@
              ;even if the dot representation hasn't changed, we want to always update this.
              :gnodes (mapv #(assoc % :node (core/get-node (:nodes state) (:id %)) :cluster (get-in state [:clusters (:id %)]) ) (:nodes gdata))
              :gclusters (:clusters gdata)
+             :gedges (dot->data dot)
        )
     )
   )
@@ -716,7 +792,7 @@
               (swap! ui-state assoc :resize-points (:points gnode) :resize-label (get-in gnode [:node :text]))
               (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (resize-mouse target move-keys))
              )
-          (let [move-keys (core/vmap #(events/listen js/window % (link-preview (.-target e))) [EventType.MOUSEMOVE EventType.TOUCHMOVE])
+          (let [move-keys (core/vmap #(events/listen js/window % (link-preview (.-target e) (core/changed-touch e))) [EventType.MOUSEMOVE EventType.TOUCHMOVE])
                 start-point (graph-coords target e)]
             (swap! ui-state assoc :preview-points {:start start-point :end start-point :start-node-id node-id :end-node-id node-id})
             (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (node-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (core/coords e) direction move-keys))
@@ -1144,9 +1220,49 @@
              ]
            )
           ;SVG containing the graphviz graph. Used for edges and clusters
-          [:div {:dangerouslySetInnerHTML {:__html
-                (:svg state)
-              }}]
+          [:div {:class "new-svg"}
+            [:svg {:width (str (get-in state [:gedges :width]) "px")
+                   :height (str (get-in state [:gedges :height]) "px")
+                   }
+              [:g {:class "graph"
+                   :transform (str "translate(4 " (- (get-in state [:gedges :height]) 4) ")")
+                   }
+                (map
+                  (fn [gedge]
+                    (let [id (str "gedge-" (:head gedge) "-" (:tail gedge))
+                          offset (first (:hpts gedge))
+                          dpts (->> (:dpts gedge)
+                                    (core/debug)
+                                    (map #(let [[x y] %] (str x "," (*  1 y))))
+                                    ;(core/debug)
+                                    ;(map (partial clojure.string/join ","))
+
+                                    (core/debug)
+                                 )
+                          dpts_str (str "M" (first dpts) "C" (clojure.string/join " " (rest dpts)))
+                          hpts (core/debug (map #(core/vmap - % offset) (:hpts gedge)))
+                          ]
+                      [:g {:key id :id id :class "edge animated"}
+                        [:path {:id (str "path" id)
+                                :fill "none"
+                                :stroke "#555555"
+                                :d dpts_str} ]
+                        [:polygon {:id (str "poly" id)
+                                   :fill "#555555"
+                                   :stroke "#555555"
+                                   :points (clojure.string/join " " (map (partial clojure.string/join ",") hpts))
+                                   :transform (str "translate(" (first offset) " " (second offset) ")")
+                                   }]
+                       ]
+                     )
+                    )
+                  (get-in state [:gedges :edges]))
+               ]
+             ]
+           ]
+          ;[:div {:dangerouslySetInnerHTML {:__html
+                ;(:svg state)
+              ;}}]
           ;Overlay when editing the text of a node
           (let [ edit-id (:edit-node-id @ui-state)
                  gnode (core/get-node (:gnodes state) edit-id)
