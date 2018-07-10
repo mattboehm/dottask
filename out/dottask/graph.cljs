@@ -382,7 +382,7 @@
                         (map #(into (core/vmap sub (take 2 %)) (drop 2 %)))
                      )
           ]
-      (core/debug (assoc state :nodes (conj (:nodes state) new-node) :deps (into (:deps state) new-deps) :id-counter (inc (:id-counter state))))))
+      (assoc state :nodes (conj (:nodes state) new-node) :deps (into (:deps state) new-deps) :id-counter (inc (:id-counter state)))))
   (defn inside-cluster? [clusters child parent-id]
     (cond
       (nil? (:cluster-id child)) false
@@ -564,7 +564,7 @@
   (defn node-mouseup [src-node-id src-coords direction move-keys]
     (fn [e]
       (swap! ui-state assoc :preview-points nil)
-      (when move-keys (doseq [move-key move-keys] (events/unlistenByKey (core/debug move-key))))
+      (when move-keys (doseq [move-key move-keys] (events/unlistenByKey move-key)))
       (let [
             tgt-coords (core/coords e)
             node-id (core/el->nodeid (.elementFromPoint js/document (:x tgt-coords) (:y tgt-coords)))
@@ -574,7 +574,7 @@
             ]
         (cond 
           ;On a node that's not a collapsed cluster. link to it.
-          (and node-id (or (not= node-id cluster-id) alt-key)) 
+          (and node-id (> (core/coords-dist src-coords tgt-coords) 5) (not= node-id cluster-id))
             ((rerender! toggle-dep-clear) [src-node-id node-id (if shift-key (core/prompt "Enter link text:" "") nil)])
           ;On a cluster. add/remove node from cluster
           cluster-id
@@ -582,7 +582,7 @@
           ;On blank space. Add a new node before/after if the drag target is before/after the source
           alt-key
             ((rerender! clone-node) src-node-id)
-          :else
+          (nil? node-id)
             ((rerender! add-or-split-node) src-node-id (core/compare-coords tgt-coords src-coords (direction core/directions)) shift-key)
          )
        )
@@ -705,6 +705,7 @@
   ;ui-state is the atom
   (defn node-mousedown [e state ui-state]
     (when (or (= (.-type e) "touchstart") (= (.-button e) 0 ))
+      (.preventDefault e)
       (let [target (.-target e)
             node-id (core/el->nodeid target)
             gnode (core/get-node (:gnodes state) node-id)
@@ -716,17 +717,47 @@
               (swap! ui-state assoc :resize-points (:points gnode) :resize-label (get-in gnode [:node :text]))
               (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (resize-mouse target move-keys))
              )
-          (let [move-keys (core/vmap #(events/listen js/window % (link-preview (.-target e))) [EventType.MOUSEMOVE EventType.TOUCHMOVE])
+          (let [move-keys (core/vmap #(events/listen js/window % (link-preview (.-target e) (core/changed-touch e))) [EventType.MOUSEMOVE EventType.TOUCHMOVE])
                 start-point (graph-coords target e)]
             (swap! ui-state assoc :preview-points {:start start-point :end start-point :start-node-id node-id :end-node-id node-id})
             (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (node-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "node-overlay") "data-nodeid") (core/coords e) direction move-keys))
            )
          )
        )
+      false
      )
    )
   (defn cluster-mousedown [e]
+    (.preventDefault e)
     (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (cluster-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "cluster-overlay") "data-clusterid") e))
+    false
+   )
+  (defn graph-mousemove [ui-state]
+    (fn [e]
+      (swap! ui-state assoc-in [:cluster-points :end] (graph-coords (.-target e) e))
+      )
+    )
+  (defn graph-mouseup [ui-state move-key]
+    (fn [e]
+      (events/unlistenByKey move-key)
+      (let [
+            els (core/arraylike-to-seq (.querySelectorAll js/document ".boxed"))
+            node-ids (map core/el->nodeid els)
+            ]
+        (when (not-empty node-ids) ((rerender! add-cluster) node-ids))
+        )
+      (swap! ui-state assoc :cluster-points nil)
+      )
+    )
+  (defn graph-mousedown [e state ui-state]
+    (when (or (= (.-type e) "touchstart") (= (.-button e) 0 ))
+      (let [coords (graph-coords (.-target e) e)]
+        (swap! ui-state assoc :cluster-points {:start coords :end coords})
+        (let [move-key (events/listen js/window EventType.MOUSEMOVE (graph-mousemove ui-state))]
+          (events/listenOnce js/window EventType.MOUSEUP (graph-mouseup ui-state move-key))
+         )
+       )
+     )
    )
   (defn edit-done! 
     ([node-id text]
@@ -938,6 +969,7 @@
         [bulk-add-modal ui-state]
         [:div {:class (str "dotgraph" (when (:edit-node-id @ui-state) " editing") )
                ;:on-click #(when (= (.-nodeName (.-target %)) "polygon") ((rerender! add-node) [] []))
+               :on-mouse-down #(graph-mousedown % state ui-state)
                }
           [:div {:class "graph-overlay"} 
             ;Resize overlay
@@ -963,7 +995,13 @@
               (fn [node]
                 ;We draw divs on top of where the nodes are in the graphviz svg so that we can do more advanced styling/functionality
                 ;Collapsed clusters are also turned into nodes. They have different styling and can be differentiated by a truthy :cluster value
-                [:div {:class (str "node-overlay" (when (= (:id node) (:selected-node-id state)) " selected") (when (:cluster node) " cluster-node") (when (contains? (:connected-nodes state) (:id node)) " connected")) 
+                [:div {:class (str
+                                "node-overlay"
+                                (when (= (:id node) (:selected-node-id state)) " selected")
+                                (when (:cluster node) " cluster-node")
+                                (when (contains? (:connected-nodes state) (:id node)) " connected")
+                                (when (and (:cluster-points @ui-state) (core/rects-overlap? (core/translate-rect (:points node) x-offset y-offset) (core/bounding-rect (-> @ui-state (:cluster-points) (vals) )))) " boxed")
+                                ) 
                        :key (:id node)
                        ;When cluster nodes are clicked on, expand the cluster
                        :on-click (when (:cluster node) #((rerender! (fn [state] (assoc-in state [:clusters (:id node) :collapsed] false )))))
@@ -974,7 +1012,7 @@
                        ;On mouse down/ touch start, set things up so that when the user stops dragging, we can add the link/node
                        :on-mouse-down (when (:node node) #(node-mousedown % state ui-state))
                        :on-touch-start (when (:node node) #(node-mousedown % state ui-state))
-                       :on-mouse-enter (fn [e] (when (.-shiftKey e) (swap! app-state assoc :connected-nodes (->> (:deps state) (core/debug) (filter (partial core/node-in-link? (:id node))) (core/debug) (apply concat) (apply hash-set) (core/debug)))))
+                       :on-mouse-enter (fn [e] (when (.-shiftKey e) (swap! app-state assoc :connected-nodes (->> (:deps state) (filter (partial core/node-in-link? (:id node))) (apply concat) (apply hash-set)))))
                        :on-mouse-leave #(when-not (empty? (:connected-nodes state)) (swap! app-state assoc :connected-nodes #{}))
                        :style {
                          :left (str (+ x-offset (get-in node [:points :x :min])) "px")
@@ -1035,7 +1073,10 @@
             (map
               (fn [cluster]
                 (let [
-                  top (+ 1 y-offset (get-in cluster [:points :y :min]))
+                  ;top (+ 1 y-offset (get-in cluster [:points :y :min]))
+                  top (if (= (:direction state) :up)
+                        (- (+ y-offset (get-in cluster [:points :y :max])) 21)
+                        (+ 1 y-offset (get-in cluster [:points :y :min])))
                   left (+ 1 x-offset (get-in cluster [:points :x :min]))
                   right (+ -1 x-offset (get-in cluster [:points :x :max]))
                   width (- right left)
@@ -1109,6 +1150,17 @@
                     [:use {:href "#tag" :style (if (not= icon "#tag") {:display "none"} {})}]
                  ]))
            )
+          (when (:cluster-points @ui-state)
+            [:svg {:class "link-preview"}
+             (let [points (:cluster-points @ui-state)
+                   rect (core/bounding-rect [(:start points) (:end points)])
+                   width (core/width rect)
+                   height (core/height rect)
+                   ]
+               [:rect {:x (get-in rect [:x :min]) :y (get-in rect [:y :min]) :width width :height height :stroke "#666" :stroke-width 2 :stroke-dasharray "8,4" :fill "none"}]
+               )
+             ]
+            )
           ; Arrow when dragging from node (plus node outline if cursor is on blank area)
           (when (:preview-points @ui-state)
             [:svg {:class "link-preview"}

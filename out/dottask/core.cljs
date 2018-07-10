@@ -147,6 +147,39 @@
       (if (before (coord this) (coord other)) :before :after)
      )
    )
+  (defn coords-dist [this other]
+    (let [dx (- (:x this) (:x other))
+          dy (- (:y this) (:y other))
+          square #(* % %)]
+      (js/Math.sqrt (+ (square dx) (square dy)))
+     )
+   )
+  (defn bounding-rect [points]
+    {:x (extent (map :x points))
+     :y (extent (map :y points))
+     }
+    )
+  (defn ranges-overlap? [range1 range2]
+    (<= (max (:min range1) (:min range2)) (min (:max range1) (:max range2)))
+    )
+  (defn rects-overlap? [r1 r2]
+    (and
+      (ranges-overlap? (:x r1) (:x r2))
+      (ranges-overlap? (:y r1) (:y r2))
+      )
+    )
+  (defn translate-rect [r x y]
+    {
+     :x {
+         :min (+ x (get-in r [:x :min]))
+         :max (+ x (get-in r [:x :max]))
+         }
+     :y {
+         :min (+ y (get-in r [:y :min]))
+         :max (+ y (get-in r [:y :max]))
+         }
+     }
+    )
   ;take a map of keys to lists of vals and invert to a map of each val to its key
   ;{:odd [1 3] :even [2 4]} -> {1 :odd 3 :odd 2 :even 4 :even}
   (defn invert-list-map [hmap]

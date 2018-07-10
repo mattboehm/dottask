@@ -49,14 +49,14 @@ var n__5574__auto__ = a.length;
 var i = (0);
 while(true){
 if((i < n__5574__auto__)){
-var c_18067 = (a[i]);
-if(cljs.core.truth_((c_18067["cljsIsDirty"]))){
-(c_18067["forceUpdate"])();
+var c_18095 = (a[i]);
+if(cljs.core.truth_((c_18095["cljsIsDirty"]))){
+(c_18095["forceUpdate"])();
 } else {
 }
 
-var G__18068 = (i + (1));
-i = G__18068;
+var G__18096 = (i + (1));
+i = G__18096;
 continue;
 } else {
 return null;
@@ -71,8 +71,8 @@ while(true){
 if((i < n__5574__auto__)){
 (a[i]).call(null);
 
-var G__18069 = (i + (1));
-i = G__18069;
+var G__18097 = (i + (1));
+i = G__18097;
 continue;
 } else {
 return null;
@@ -112,12 +112,12 @@ return null;
 } else {
 self__.scheduled_QMARK_ = true;
 
-var G__18070 = ((function (this$){
+var G__18098 = ((function (this$){
 return (function (){
 return this$.run_queue();
 });})(this$))
 ;
-return (reagent.impl.batching.next_tick.cljs$core$IFn$_invoke$arity$1 ? reagent.impl.batching.next_tick.cljs$core$IFn$_invoke$arity$1(G__18070) : reagent.impl.batching.next_tick.call(null,G__18070));
+return (reagent.impl.batching.next_tick.cljs$core$IFn$_invoke$arity$1 ? reagent.impl.batching.next_tick.cljs$core$IFn$_invoke$arity$1(G__18098) : reagent.impl.batching.next_tick.call(null,G__18098));
 }
 });
 
@@ -174,10 +174,10 @@ reagent.impl.batching.do_after_flush(f);
 return reagent.impl.batching.render_queue.schedule();
 });
 reagent.impl.batching.is_reagent_component = (function reagent$impl$batching$is_reagent_component(c){
-var G__18072 = c;
-var G__18072__$1 = (((G__18072 == null))?null:(G__18072["props"]));
-var G__18072__$2 = (((G__18072__$1 == null))?null:(G__18072__$1["argv"]));
-return G__18072__$2;
+var G__18100 = c;
+var G__18100__$1 = (((G__18100 == null))?null:(G__18100["props"]));
+var G__18100__$2 = (((G__18100__$1 == null))?null:(G__18100__$1["argv"]));
+return G__18100__$2;
 });
 reagent.impl.batching.run_reactively = (function reagent$impl$batching$run_reactively(c,run){
 if(cljs.core.truth_(reagent.impl.batching.is_reagent_component(c))){
@@ -206,8 +206,8 @@ return reagent.ratom.run(rat);
 }
 });
 reagent.impl.batching.dispose = (function reagent$impl$batching$dispose(c){
-var G__18074_18075 = (c["cljsRatom"]);
-var G__18074_18076__$1 = (((G__18074_18075 == null))?null:reagent.ratom.dispose_BANG_(G__18074_18075));
+var G__18102_18103 = (c["cljsRatom"]);
+var G__18102_18104__$1 = (((G__18102_18103 == null))?null:reagent.ratom.dispose_BANG_(G__18102_18103));
 
 return reagent.impl.batching.mark_rendered(c);
 });
