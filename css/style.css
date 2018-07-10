@@ -149,6 +149,9 @@ div:hover>span.collapse{
 .node-overlay.selected {
 	box-shadow: 0 0 1px 2.5px #FF4;
 }
+.node-overlay.boxed {
+	box-shadow: 0 0 1px 3.5px #59d45d;
+}
 .node-overlay.connected {
 	box-shadow: 0 0 4px 1px #88F !important;
 }
