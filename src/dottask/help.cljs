@@ -52,7 +52,7 @@
       ]}
     {:id "clusters" :title "Clusters" :contents [
       "Cards can be grouped into clusters which appear as a box with a label. If all of a cluster's contents are deleted, it is removed." 
-      {:id "add-cluster-card" :title "Create a cluster around a card" :contents ["Double click on the card's border (outside the white text area)"]} 
+      {:id "add-cluster-card" :title "Create a cluster around cards" :contents ["Drag a box around the cards you want clustered. You can also double click on the card's border (outside the white text area)"]} 
       {:id "add-cluster-cluster" :title "Create a cluster around a cluster" :contents ["Drag from the cluster text to empty space above"]} 
       {:id "toggle-card-cluster" :title "Add/remove card to/from cluster" :contents ["Drag from the card to the cluster text (or vice versa)"]} 
       {:id "toggle-cluster-cluster" :title "Add/remove cluster to/from cluster" :contents ["Drag from the child cluster text to the parent cluster text"]} 
