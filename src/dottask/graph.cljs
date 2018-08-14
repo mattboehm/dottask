@@ -743,8 +743,11 @@
       (let [
             els (core/arraylike-to-seq (.querySelectorAll js/document ".boxed"))
             node-ids (map core/el->nodeid els)
+            pts (:cluster-points ui-state)
             ]
-        (when (not-empty node-ids) ((rerender! add-cluster) node-ids))
+        (when (and (not-empty node-ids)
+                   (> (core/debug (core/coords-dist (:start pts) (:end pts))) 1));Need to do this to prevent expanding clusters from triggering a cluster (graph mouseup handler)
+          ((rerender! add-cluster) node-ids))
         )
       (swap! ui-state assoc :cluster-points nil)
       )
