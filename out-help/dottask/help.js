@@ -10,23 +10,23 @@ dottask.help.toc_row = (function dottask$help$toc_row(sect){
 return new cljs.core.PersistentVector(null, 4, 5, cljs.core.PersistentVector.EMPTY_NODE, [cljs.core.cst$kw$div,new cljs.core.PersistentArrayMap(null, 1, [cljs.core.cst$kw$class,"toc-row"], null),dottask.core.a_link.cljs$core$IFn$_invoke$arity$2(cljs.core.cst$kw$id.cljs$core$IFn$_invoke$arity$1(sect),cljs.core.cst$kw$title.cljs$core$IFn$_invoke$arity$1(sect)),cljs.core.map.cljs$core$IFn$_invoke$arity$2(dottask$help$toc_row,cljs.core.filter.cljs$core$IFn$_invoke$arity$2(cljs.core.cst$kw$contents,cljs.core.cst$kw$contents.cljs$core$IFn$_invoke$arity$2(sect,cljs.core.PersistentVector.EMPTY)))], null);
 });
 dottask.help.section = (function dottask$help$section(var_args){
-var args18662 = [];
-var len__5729__auto___18665 = arguments.length;
-var i__5730__auto___18666 = (0);
+var args18663 = [];
+var len__5729__auto___18666 = arguments.length;
+var i__5730__auto___18667 = (0);
 while(true){
-if((i__5730__auto___18666 < len__5729__auto___18665)){
-args18662.push((arguments[i__5730__auto___18666]));
+if((i__5730__auto___18667 < len__5729__auto___18666)){
+args18663.push((arguments[i__5730__auto___18667]));
 
-var G__18667 = (i__5730__auto___18666 + (1));
-i__5730__auto___18666 = G__18667;
+var G__18668 = (i__5730__auto___18667 + (1));
+i__5730__auto___18667 = G__18668;
 continue;
 } else {
 }
 break;
 }
 
-var G__18664 = args18662.length;
-switch (G__18664) {
+var G__18665 = args18663.length;
+switch (G__18665) {
 case 1:
 return dottask.help.section.cljs$core$IFn$_invoke$arity$1((arguments[(0)]));
 
@@ -36,7 +36,7 @@ return dottask.help.section.cljs$core$IFn$_invoke$arity$2((arguments[(0)]),(argu
 
 break;
 default:
-throw (new Error([cljs.core.str("Invalid arity: "),cljs.core.str(args18662.length)].join('')));
+throw (new Error([cljs.core.str("Invalid arity: "),cljs.core.str(args18663.length)].join('')));
 
 }
 });
