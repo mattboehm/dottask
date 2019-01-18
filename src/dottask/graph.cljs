@@ -743,7 +743,7 @@
       (let [
             els (core/arraylike-to-seq (.querySelectorAll js/document ".boxed"))
             node-ids (map core/el->nodeid els)
-            pts (:cluster-points ui-state)
+            pts (:cluster-points @ui-state)
             ]
         (when (and (not-empty node-ids)
                    (> (core/debug (core/coords-dist (:start pts) (:end pts))) 1));Need to do this to prevent expanding clusters from triggering a cluster (graph mouseup handler)
@@ -753,7 +753,9 @@
       )
     )
   (defn graph-mousedown [e state ui-state]
-    (when (or (= (.-type e) "touchstart") (= (.-button e) 0 ))
+    (when (and
+            (not (:edit-node-id @ui-state))
+            (or (= (.-type e) "touchstart") (= (.-button e) 0 )))
       (let [coords (graph-coords (.-target e) e)]
         (swap! ui-state assoc :cluster-points {:start coords :end coords})
         (let [move-key (events/listen js/window EventType.MOUSEMOVE (graph-mousemove ui-state))]
