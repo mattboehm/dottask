@@ -147,7 +147,7 @@ div:hover>span.collapse{
 	z-index: 999;
 }
 .node-overlay.selected {
-	box-shadow: 0 0 1px 2.5px #FF4;
+	box-shadow: 0 0 2px 2.5px #66F;
 }
 .node-overlay.boxed {
 	box-shadow: 0 0 1px 3.5px #59d45d;
@@ -160,6 +160,12 @@ div:hover>span.collapse{
 	border-radius: 20px;
 	box-shadow: inset 0 0 10px 1px #666;
 }
+.node-overlay.cluster-node.selected {
+	box-shadow: inset 0 0 10px 1px #666, 0 0 2px 2.5px #66F;
+}
+.node-overlay.cluster-node.boxed {
+	box-shadow: inset 0 0 10px 1px #666, 0 0 1px 3.5px #59d45d !important;
+}
 .node-overlay.cluster-node .task-text {
 	border-radius: 10px;
 	margin-top: 14px;
@@ -168,7 +174,7 @@ div:hover>span.collapse{
 	height: calc(100% - 38px);
 }
 .cluster-overlay {
-	transition: 0.5s ease-in;
+	transition: 0.5s ease-in, box-shadow 0.1s ease-out;
 	user-select: none;
 	font-family: sans-serif;
 	font-size: 11pt;
@@ -179,6 +185,12 @@ div:hover>span.collapse{
         height: 18px;
         padding-top: 1px;
         text-align: center;
+}
+.cluster-overlay.selected {
+	box-shadow: 0 0 2px 3.5px #66F;
+}
+.cluster-overlay.boxed {
+	box-shadow: 0 0 1px 3.5px #59d45d;
 }
 .cluster-overlay span.delete {
 	position: absolute;
@@ -354,4 +366,7 @@ span.button:hover svg, .direction-button:hover svg {
 	stroke-linejoin: round;
 	stroke-width: 2.5;
 	stroke: #999;
+}
+.cluster>text {
+	display: none;
 }
