@@ -390,6 +390,47 @@
       :else (inside-cluster? clusters (get clusters (:cluster-id child)) parent-id)
      )
    )
+  (defn clone-cluster [state cluster-id]
+    (let [{id-counter :id-counter nodes :nodes clusters :clusters deps :deps} state
+          clusters-to-clone (->>
+                              (vals clusters)
+                              (filter #(inside-cluster? clusters % cluster-id))
+                              (into [(get clusters cluster-id)])
+                             )
+          cluster-clone-ids (set (map :id clusters-to-clone))
+          update-id #(str % "_" id-counter)
+          update-cluster-id #(if (contains? cluster-clone-ids %) (update-id %) %)
+          new-clusters (->>
+                         clusters-to-clone
+                         (map #(update-in % [:id] update-id))
+                         (map #(update-in % [:cluster-id] update-cluster-id))
+                        )
+          new-cluster-map (zipmap (map :id new-clusters) new-clusters)
+          nodes-to-clone (->>
+                           nodes
+                           (filter #(inside-cluster? clusters % cluster-id))
+                          )
+          new-nodes (->>
+                      nodes-to-clone
+                      (map #(update-in % [:id] update-id))
+                      (map #(update-in % [:cluster-id] update-cluster-id))
+                     )
+          node-clone-ids (set (map :id nodes-to-clone))
+          update-node-id #(if (contains? node-clone-ids %) (update-id %) %)
+          new-deps (->>
+                     deps
+                     (filter #(not-empty (clojure.set/intersection (set (subvec % 0 2)) node-clone-ids)))
+                     (map #(assoc % 0 (update-node-id (first %)) 1 (update-node-id (second %))))
+                    )
+
+          ]
+        (assoc state
+          :nodes (into nodes new-nodes)
+          :deps (into deps new-deps)
+          :clusters (merge clusters new-cluster-map)
+          :id-counter (inc id-counter))
+      ) 
+    )
   ;make the node/cluster a direct child of cluter with id=parent-id.
   ;does nothing if the intended parent is already nested inside the child, as this is impossible
   ;if the child is already a direct child of parent, remove it from the cluster instead
@@ -605,9 +646,11 @@
       )
     )
   ;when a user lifts their mouse after dragging from a cluster
-  (defn cluster-mouseup [src-cluster-id down-event]
+  (defn cluster-mouseup [src-cluster-id down-event, move-keys]
     (let [src-y (.-clientY down-event)]
       (fn [e]
+        (swap! ui-state assoc :preview-points nil)
+        (when move-keys (doseq [move-key move-keys] (events/unlistenByKey move-key)))
         (let [
               tgt-coords (core/coords e)
               node-id (core/el->nodeid (.elementFromPoint js/document (:x tgt-coords) (:y tgt-coords)))
@@ -622,9 +665,12 @@
                 ;on a different cluster, nest this one inside it
                 ((rerender! toggle-cluster-nesting) src-cluster-id cluster-id)
                  ;If not on a node/cluster, make a new node/cluster outside of this one
-                (if (< (.-clientY e) src-y)
-                  ((rerender! outer-cluster-prompt) src-cluster-id)
-                  ((rerender! add-and-name-node!) [] [] src-cluster-id)
+                (if (.-altKey e)
+                  ((rerender! clone-cluster) src-cluster-id)
+                  (if (< (.-clientY e) src-y)
+                    ((rerender! outer-cluster-prompt) src-cluster-id)
+                    ((rerender! add-and-name-node!) [] [] src-cluster-id)
+                   )
                  )
                )
              )
@@ -728,9 +774,25 @@
      )
    )
   (defn cluster-mousedown [e]
-    (.preventDefault e)
-    (events/listenOnce js/window (array EventType.MOUSEUP EventType.TOUCHEND) (cluster-mouseup (.getAttribute (dom/getAncestorByClass (.-target e) "cluster-overlay") "data-clusterid") e))
-    false
+    (when (or (= (.-type e) "touchstart") (= (.-button e) 0 ))
+      (.preventDefault e)
+      (let [target (.-target e)
+            cluster-id (core/el->clusterid target)
+            move-keys (core/vmap #(events/listen js/window % (link-preview (.-target e) (core/changed-touch e))) [EventType.MOUSEMOVE EventType.TOUCHMOVE])
+            start-point (graph-coords target e)
+            ]
+        (swap! ui-state assoc :preview-points {:start start-point :end start-point :start-cluster-id cluster-id :end-cluster-id cluster-id})
+        (events/listenOnce
+          js/window
+          (array EventType.MOUSEUP EventType.TOUCHEND)
+          (cluster-mouseup
+            (.getAttribute (dom/getAncestorByClass (.-target e) "cluster-overlay") "data-clusterid")
+            e
+            move-keys
+            ))
+       )
+      false
+     )
    )
   (defn graph-mousemove [ui-state]
     (fn [e]
@@ -1122,24 +1184,34 @@
           ]
           ; + / - icon by cursor when previewing add/remove link or add to/remove from cluster
           (when (:preview-points @ui-state)
-            (let [{shift-key :shift-key alt-key :alt-key end :end start-id :start-node-id end-id :end-node-id end-cluster-id :end-cluster-id} (:preview-points @ui-state)
-                  start-node (core/get-node (:nodes state) start-id)
-                  icon (or
-                         (when (and end-id (or (not= end-id start-id) alt-key))
-                           (if shift-key
-                             "#tag"
-                             (if (find-dep state [start-id end-id])
-                               "#minus"
-                               "#plus"
-                              )
-                             )
-                           )
-                         (when end-cluster-id
-                               (if (inside-cluster? (:clusters state) start-node end-cluster-id)
-                                 "#minus"
-                                 "#plus"
-                                )
-                          ))]
+            (let [
+              {shift-key :shift-key alt-key :alt-key end :end start-node-id :start-node-id start-cluster-id :start-cluster-id end-node-id :end-node-id end-cluster-id :end-cluster-id} (:preview-points @ui-state)
+                  
+              icon 
+                (cond
+                  (and start-node-id end-node-id (not= end-node-id start-node-id))
+                    (cond
+                      shift-key "#tag"
+                      (find-dep state [start-node-id end-node-id]) "#minus"
+                      :else "#plus"
+                     )
+                  (and start-node-id end-cluster-id)
+                    (if (= (:cluster-id (core/get-node (:nodes state) start-node-id)) end-cluster-id)
+                      "#minus"
+                      "#plus"
+                     )
+                  (and start-cluster-id end-node-id)
+                    (if (= (:cluster-id (core/get-node (:nodes state) end-node-id)) start-cluster-id)
+                      "#minus"
+                      "#plus"
+                     )
+                  (and start-cluster-id end-cluster-id)
+                    (if (= (:cluster-id (get (:clusters state) start-cluster-id)) end-cluster-id)
+                      "#minus"
+                      "#plus"
+                     )
+                  )
+                  ]
               (when icon
                 [:svg {:class "link-preview-icon"
                        :style {:position "absolute"
@@ -1170,7 +1242,7 @@
           (when (:preview-points @ui-state)
             [:svg {:class "link-preview"}
                (let [points (:preview-points @ui-state)
-                     {start :start end :end start-id :start-node-id end-id :end-node-id end-cluster-id :end-cluster-id alt-key :alt-key} (:preview-points @ui-state)
+                     {start :start end :end start-id :start-node-id start-cluster-id :start-cluster-id end-id :end-node-id end-cluster-id :end-cluster-id alt-key :alt-key} (:preview-points @ui-state)
                      color "#666"
                      ;point to source node if we're on blank space and above our start point
                      point-backwards? (and (not (or end-id end-cluster-id)) (= :before (core/compare-coords end start ((:direction state) core/directions))))
@@ -1183,7 +1255,7 @@
                      ]
                 [:g {:class "edge pv-line"}
                  ;if on empty space, draw rectangle for placeholder node
-                 (when-not (or end-id end-cluster-id)
+                 (when-not (or (and start-cluster-id (not alt-key) (< (:y end) (:y start))) end-id end-cluster-id)
                    [:g {:transform (str "translate(" (:x end) " " (:y end) ")")}
                     [:rect {:x -72 :y -43 :width 144 :height 86 :stroke color :stroke-width 2 :stroke-dasharray "8,4" :fill "none"}]
                     (when alt-key [:g {:transform "translate(24 -37) scale(0.02)" :fill "#666"} [:use {:href "#clone"}]])
