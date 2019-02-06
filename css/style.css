@@ -52,7 +52,7 @@ body {
 #graph0>polygon{
 	opacity: 0;
 }
-span.delete, span.collapse{
+span.delete, span.collapse, span.copy{
 	color: #888;
 	cursor: pointer;
 	width: 16px;
@@ -63,54 +63,73 @@ span.delete, span.collapse{
 }
 .node-overlay>span.delete{
 	position: absolute;
-	top: -1px;
+	top: 0px;
 	right: -1px;
 }
 div:hover>span.delete{
 	opacity: 1;
 }
+div:hover>span.copy{
+	opacity: 1;
+}
 div:hover>span.collapse{
 	opacity: 1;
 }
-.node-sidebar>span.delete{
+.node-topbar>span.delete{
 	opacity: 1;
 	position: absolute;
-	top: -2px;
-	right: -0px;
+	top: -1px;
+	right: 0px;
 } 
-
-.node-overlay .node-sidebar {
+.node-topbar>span.copy{
+	opacity: 1;
 	position: absolute;
 	top: -1px;
-	right: -18px;
-	width: 16px;
-	min-height: 86px;
-	height: 100%;
+	right: 11px;
+} 
+
+.node-overlay .node-bar {
+	position: absolute;
 	border: 0.5px solid #999;
-	background-color: #eee;
+	background-color: #f8f8f8;
 	opacity: 0;
 	transition: 0.4s ease-out;
 }
-.node-overlay:hover .node-sidebar {
+.node-overlay:hover .node-bar {
 	opacity: 1;
 	z-index: 20;
+	border-radius: 2px;
+}
+.node-overlay .node-topbar {
+	top: -17.5px;
+	left: -1px;
+	width: 27px;
+	width: 100%;
+	min-width: 106px;
+	height: 16px;
 }
 .node-overlay .color-picker {
 	position: absolute;
-	line-height: 10px;
-	top: 14px;
-	left: 3px;
+	line-height: 11px;
+	width: 96px;
+	top: 3px;
+	left: 4px;
 	opacity: 0.7;
 }
 .node-overlay .color-swatch {
 	opacity: 0;
-	width: 8px;
-	height: 8px;
+	width: 10px;
+	height: 10px;
+	margin-right: 1px;
 	display: inline-block;
-	border: 0.5px solid #999;
+	border: 0px solid #999;
+	border-radius: 2px;
 	cursor: pointer;
 }
 .node-overlay:hover .color-swatch {
+	opacity: 0.8;
+}
+.node-overlay:hover .color-swatch:hover {
 	opacity: 1;
 }
 
@@ -197,9 +216,14 @@ div:hover>span.collapse{
 	right: 0px;
 	top: 0px;
 }
-.cluster-overlay span.collapse {
+.cluster-overlay span.copy {
 	position: absolute;
 	right: 12px;
+	top: 0px;
+}
+.cluster-overlay span.collapse {
+	position: absolute;
+	right: 24px;
 	top: 0px;
 }
 .node polygon {

@@ -1218,7 +1218,7 @@
                          :height (str (* (core/get-node-dim (:node node) :height) ppi) "px")
                          :background-color (:color (:node node) "")
                        }}
-                  [:div {:class "node-sidebar"} ;sidebar opens on hover and contains delete/color buttons
+                  [:div {:class "node-bar node-topbar"}
                     [:span
                       { :class "delete"
                         :title "Delete"
@@ -1229,6 +1229,17 @@
                        }
                       "×"
                      ]
+                    [:span
+                      { :class "copy"
+                        :title "Copy"
+                        :data-help-link "copy-card"
+                        :on-click #(
+                                    (if (:cluster node)
+                                     ((rerender! clone-cluster) (:id node))
+                                     ((rerender! clone-node) (:id node)))
+                                    (.preventDefault %)
+                                    false)
+                       } "+"]
                     (when (:node node)
                       [:span {:class "color-picker"
                               :data-help-link "card-color"}
@@ -1305,6 +1316,14 @@
                        }
                       "-"
                      ]
+                    [:span
+                      { :class "copy"
+                        :title "Copy"
+                        :on-click #(
+                                    ((rerender! clone-cluster) (:id cluster))
+                                    (.preventDefault %)
+                                    false)
+                       } "+"]
                     ;Button in top right to delete cluster
                     [:span
                       { :class "delete"

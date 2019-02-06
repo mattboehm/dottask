@@ -34,6 +34,7 @@
       [:div {:style {:display "block" :position "relative"} :class "node-overlay"} [:div {:class "task-text"} "sample card"]]
       "Cards (or 'nodes') are the basic units of the graph" 
       {:id "delete-card" :title "Delete a card" :contents ["Hover over it then clicking the x button that appears in the upper right"]}
+      {:id "copy-card" :title "Copy a card" :contents ["Clicking the + button creates a copy of the card (same color, text, size, and links)"]}
       {:id "card-text" :title "Change card text" :contents ["Click on the light box inside the card" "When done editing, hit enter/escape or click on the area outside the textbox to save changes. You can also hit tab or shift-tab to switch to the next/previous card."]}
       {:id "card-color" :title "Change card color" :contents ["Hover over it and click a colored square in the right panel"]}
       {:id "card-resize" :title "Resize a card" :contents ["Drag the handle in the lower-right corner"]}
