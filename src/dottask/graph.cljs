@@ -493,6 +493,12 @@
           :id-counter (inc id-counter))
       ) 
     )
+  (defn clone-item [state item-id]
+    (if (get-in state [:clusters item-id])
+      (clone-cluster state item-id)
+      (clone-node state item-id)
+     )
+   )
   ;make the node/cluster a direct child of cluter with id=parent-id.
   ;does nothing if the intended parent is already nested inside the child, as this is impossible
   ;if the child is already a direct child of parent, remove it from the cluster instead
@@ -1224,9 +1230,7 @@
                         :title "Copy"
                         :data-help-link "copy-card"
                         :on-click #(
-                                    (if (:cluster node)
-                                     ((rerender! clone-cluster) (:id node))
-                                     ((rerender! clone-node) (:id node)))
+                                    ((rerender! clone-item) (:id node))
                                     (.preventDefault %)
                                     false)
                        } "+"]
@@ -1469,6 +1473,8 @@
           37 (when shift (hist/undo!))
           ;>
           39 (when shift (hist/redo!))
+          ;c
+          67 (when selected ((rerender! clone-item) selected))
           ;d
           68 (when selected
                (cond

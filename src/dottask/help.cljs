@@ -84,6 +84,7 @@
          ]]} 
       {:id "shortcut-adding" :title "Adding items" :contents [
         [:ul
+           [:li [:b "c: "] (core/a-link "copy-card" "Copy") " a card"]
            [:li [:b "</>: "] "Add card before/after selected one (like " (core/a-link "drag-card" "dragging from a card") ")"]
            [:li [:b "-: "] "Link/unlink cards. The first time you hit it, it marks that node as the source. Then select the target node and hit it again to mark the target and create the link"]
          ]]} 
