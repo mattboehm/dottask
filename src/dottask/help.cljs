@@ -75,7 +75,7 @@
         "The following keys allow you to change the selected card (highlighted with a yellow border)"
         [:ul
            [:li [:b "d: "] "Delete card"]
-           [:li [:b "e: "] "Edit card text"]
+           [:li [:b "enter/e: "] "Edit card text"]
            [:li "Change card color:"
              [:ul
                (map (fn [color] [:li [:b (str (:shortcut color) ": ")] (:name color)]) core/colors)

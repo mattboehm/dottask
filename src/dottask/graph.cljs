@@ -374,7 +374,7 @@
                        (map #(vector (:id new_node) %) afters)
                                       ]
                              )
-            new_state (assoc state :nodes new_nodes :deps all_deps :id-counter (inc (:id-counter state)))
+            new_state (assoc state :nodes new_nodes :deps all_deps :selected-node-id new_node_id :id-counter (inc (:id-counter state)))
             ]
         (if return-id?
           [new_state  new_node_id]
@@ -524,17 +524,13 @@
                                           (remove #(contains? contained-cluster-ids (:cluster-id %)))
                                           (map :id))
             nodes-to-recluster (->> node-ids
-                                    (core/debug)
                                     (map #(core/get-node nodes %))
-                                    (core/debug)
                                     (remove #(contains? contained-cluster-ids (:cluster-id %)))
-                                    (core/debug)
                                     (map :id)
-                                    (core/debug)
                                     )
             new-state (reduce
                         #(recluster-node %1 %2 cluster-id)
-                        (assoc state :clusters (assoc (:clusters state) cluster-id {:id cluster-id :text text :collapsed false}) :id-counter (inc (:id-counter state)))
+                        (assoc state :clusters (assoc (:clusters state) cluster-id {:id cluster-id :text text :collapsed false}) :selected-node-id cluster-id :id-counter (inc (:id-counter state)))
                         nodes-to-recluster
                        )
             new-state-with-clusters (reduce
@@ -559,12 +555,6 @@
        )
      )))
    )
-  (defn add-and-name-cluster! [state node-ids]
-    (let [[new-state new-id] (add-cluster state "" node-ids true)]
-      (edit-node! new-id)
-      new-state
-      )
-    )
   ;delete a cluster (and its contents if 'delete-contents?')
   (defn delete-cluster 
     ([state id] (delete-cluster state id false))
@@ -920,8 +910,8 @@
             pts (:cluster-points @ui-state)
             ]
         (when (and (not-empty node-ids)
-                   (> (core/debug (core/coords-dist (:start pts) (:end pts))) 1));Need to do this to prevent expanding clusters from triggering a cluster (graph mouseup handler)
-          ((rerender! add-and-name-cluster!) node-ids))
+                   (> (core/coords-dist (:start pts) (:end pts)) 1));Need to do this to prevent expanding clusters from triggering a cluster (graph mouseup handler)
+          ((rerender! add-cluster) node-ids))
         )
       (swap! ui-state assoc :cluster-points nil)
       )
@@ -1203,7 +1193,7 @@
                        ;When cluster nodes are clicked on, expand the cluster
                        :on-click (when (:cluster node) #((rerender! (fn [state] (assoc-in state [:clusters (:id node) :collapsed] false )))))
                        ;When nodes are double-clicked, add a surrounding cluster
-                       :on-double-click #((rerender! add-and-name-cluster!) [(:id node)])
+                       :on-double-click #((rerender! add-cluster) [(:id node)])
                        ;Store the node ID as a dom attribute so event handlers can extract it later
                        :data-nodeid (:id node)
                        ;On mouse down/ touch start, set things up so that when the user stops dragging, we can add the link/node
@@ -1487,10 +1477,10 @@
                  cluster-selected? ((rerender! delete-cluster) selected false)
                 )
                )
-          ;e
-          69 (edit-node! selected)
+          ;enter/e
+          (13 69) (edit-node! selected)
           ;i
-          73 (when node-selected? ((rerender! add-and-name-cluster!) [selected]))
+          73 (when node-selected? ((rerender! add-cluster) [selected]))
           ;j
           74 (hist/off-the-record ((rerender! select-next-node) 1))
           ;k
