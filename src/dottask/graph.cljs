@@ -12,6 +12,7 @@
     [goog.events :as events]
     [goog.html.SafeHtml :as shtml]
     [goog.string :as gstring]
+    [alandipert.storage-atom :refer [local-storage]]
     [historian.core :as hist]
     [dottask.macros :as macros]
     [tubax.core :as tbx])
@@ -26,25 +27,30 @@
 ;; State
   ;All of the main application state is saved here
   ;undo/redo toggles between versions of this state
-  (defonce app-state (reagent/atom {
-    :id-counter 6 ;used to genereate unique id's for nodes/clusters
-    :nodes [
-      { :id "node1" :text "Drag things" }
-      { :id "node2" :text "Make nodes" }
-      { :id "node3" :text "Make links" }
-      { :id "node4" :text "???" }
-      { :id "node5" :text "Profit!" }
-    ]
-    :direction :down ;link direction. is a key of 'directions' constant.
-    :clusters {} ;map of cluster id's to the clusters
-    :selected-node-id nil
-    :toggle-link-node-id nil 
-    ;list of edges. Edges are a vec of [source_id target_id (label)]
-    :deps [["node1" "node2"] ["node1" "node3"] ["node2" "node4"] ["node3" "node4"] ["node4" "node5"]]
-    :dot nil ; graphviz representation
-    :svg "" ;svg output of graphviz
-    :gnodes nil;nodes extracted from graphviz
-  }))
+  (defonce app-state
+    (->
+      {
+        :id-counter 6 ;used to genereate unique id's for nodes/clusters
+        :nodes [
+          { :id "node1" :text "Drag things" }
+          { :id "node2" :text "Make nodes" }
+          { :id "node3" :text "Make links" }
+          { :id "node4" :text "???" }
+          { :id "node5" :text "Profit!" }
+        ]
+        :direction :down ;link direction. is a key of 'directions' constant.
+        :clusters {} ;map of cluster id's to the clusters
+        :selected-node-id nil
+        :toggle-link-node-id nil 
+        ;list of edges. Edges are a vec of [source_id target_id (label)]
+        :deps [["node1" "node2"] ["node1" "node3"] ["node2" "node4"] ["node3" "node4"] ["node4" "node5"]]
+        :dot nil ; graphviz representation
+        :svg "" ;svg output of graphviz
+        :gnodes nil;nodes extracted from graphviz
+      }
+      (reagent/atom)
+      (local-storage :dottask-appstate)
+  ))
   ; Holds the state of the current ui (whether popups are visible, etc)
   ; This is separate from the app-state because we don't want undo/redo to toggle popups, only the graph state
   (defonce ui-state (reagent/atom {
@@ -1506,9 +1512,13 @@
    )))
 
   (defn render! []
-    (reagent/render
-      [graph @app-state]
-      (.getElementById js/document "app")))
+    (try
+      (reagent/render
+        [graph @app-state]
+        (.getElementById js/document "app"))
+      (catch :default e
+        (.log js/console "Exception encountered while rendering. Rewinding to previous app state.")
+        (hist/undo!))))
 
   ;the first time the page loads, load the app state from the url hash
   (defn on-page-load! []

@@ -15,6 +15,7 @@
         {:id "bulk-add-ignore" :title "ignore mode" :contents ["Whitespace is trimmed from the ends and ignored" [:img {:src "static/bulk_ignore.png" :style {:zoom 0.6 :max-width "100%"}}]]} 
         {:id "bulk-add-link" :title "link mode" :contents ["Parents are linked to their children" [:img {:src "static/bulk_link.png" :style {:zoom 0.6}}]]} 
         {:id "bulk-add-cluster" :title "cluster mode" :contents ["Parents are turned into clusters that contain their children" [:img {:src "static/bulk_cluster.png" :style {:zoom 0.6}}]]} 
+        {:id "bulk-add-graphviz" :title "graphviz mode" :contents ["Instead of indented lines, paste a graphviz graph (dot format) into the textbox. The graph will be imported into dottask, but the conversion may be imperfect (especially with regards to color, sizes, and other node attributes.)"]} 
         ]
        }
       {:id "delete-all" :title "Delete all" :contents ["Click the 'Delete all' button to delete everything from the graph. This change can still be undone."]} 
@@ -27,7 +28,7 @@
        }
       {:id "undo-button" :title "Undo/Redo" :contents ["Click the undo/redo buttons to undo/redo changes to the graph. This history is not included with saves."]}
       {:id "arrow-dir" :title "Change arrow direction" :contents ["Click this to open a menu to change the primary arrow direction. This also changes the direction you must drag from a node to add new nodes (e.g. if you change the direction to 'right', instead of dragging down to make a linked node below, drag right to make one after)"]}
-      {:id "export-dot" :title "Export Graphviz Code" :contents ["Clicking this opens up a .dot representation of the graph that can be further edited and rendered with the graphviz application or many online renderers. These .dot representations currently can not be imported back into dottask."]}
+      {:id "export-dot" :title "Export Graphviz Code" :contents ["Clicking this opens up a .dot representation of the graph that can be further edited and rendered with the graphviz application or many online renderers. This dot representation can be re-imported with the " (core/a-link "bulk-add-graphviz" "Bulk Add modal") ", but there may be small differences"]}
       {:id "help-button" :title "Help" :contents ["This button opens/closes the help sidebar. You can also drag from this button to any highlighted element to jump to that help section"]}
       ]}
     {:id "cards" :title "Cards" :contents [
