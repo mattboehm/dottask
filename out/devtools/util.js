@@ -20,14 +20,14 @@ return cljs.core.reduce.cljs$core$IFn$_invoke$arity$3(_STAR_,cljs.core.first(lab
 });
 devtools.util.log_info = (function devtools$util$log_info(var_args){
 var args__5736__auto__ = [];
-var len__5729__auto___11998 = arguments.length;
-var i__5730__auto___11999 = (0);
+var len__5729__auto___12827 = arguments.length;
+var i__5730__auto___12828 = (0);
 while(true){
-if((i__5730__auto___11999 < len__5729__auto___11998)){
-args__5736__auto__.push((arguments[i__5730__auto___11999]));
+if((i__5730__auto___12828 < len__5729__auto___12827)){
+args__5736__auto__.push((arguments[i__5730__auto___12828]));
 
-var G__12000 = (i__5730__auto___11999 + (1));
-i__5730__auto___11999 = G__12000;
+var G__12829 = (i__5730__auto___12828 + (1));
+i__5730__auto___12828 = G__12829;
 continue;
 } else {
 }
@@ -44,16 +44,16 @@ return console.info.apply(console,cljs.core.to_array(args));
 
 devtools.util.log_info.cljs$lang$maxFixedArity = (0);
 
-devtools.util.log_info.cljs$lang$applyTo = (function (seq11997){
-return devtools.util.log_info.cljs$core$IFn$_invoke$arity$variadic(cljs.core.seq(seq11997));
+devtools.util.log_info.cljs$lang$applyTo = (function (seq12826){
+return devtools.util.log_info.cljs$core$IFn$_invoke$arity$variadic(cljs.core.seq(seq12826));
 });
 devtools.util.display_banner = (function devtools$util$display_banner(prefix,known_features){
 if(cljs.core.truth_(devtools.prefs.pref(cljs.core.cst$kw$dont_DASH_display_DASH_banner))){
 return null;
 } else {
-var vec__12002 = devtools.util.feature_list_display(known_features);
-var fmt_str = cljs.core.nth.cljs$core$IFn$_invoke$arity$3(vec__12002,(0),null);
-var params = cljs.core.nth.cljs$core$IFn$_invoke$arity$3(vec__12002,(1),null);
+var vec__12831 = devtools.util.feature_list_display(known_features);
+var fmt_str = cljs.core.nth.cljs$core$IFn$_invoke$arity$3(vec__12831,(0),null);
+var params = cljs.core.nth.cljs$core$IFn$_invoke$arity$3(vec__12831,(1),null);
 return cljs.core.apply.cljs$core$IFn$_invoke$arity$3(devtools.util.log_info,[cljs.core.str(prefix),cljs.core.str(" "),cljs.core.str(fmt_str)].join(''),params);
 }
 });
