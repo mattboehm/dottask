@@ -15,6 +15,7 @@
         {:id "bulk-add-ignore" :title "ignore mode" :contents ["Whitespace is trimmed from the ends and ignored" [:img {:src "static/bulk_ignore.png" :style {:zoom 0.6 :max-width "100%"}}]]} 
         {:id "bulk-add-link" :title "link mode" :contents ["Parents are linked to their children" [:img {:src "static/bulk_link.png" :style {:zoom 0.6}}]]} 
         {:id "bulk-add-cluster" :title "cluster mode" :contents ["Parents are turned into clusters that contain their children" [:img {:src "static/bulk_cluster.png" :style {:zoom 0.6}}]]} 
+        {:id "bulk-add-graphviz" :title "graphviz mode" :contents ["Instead of indented lines, paste a graphviz graph (dot format) into the textbox. The graph will be imported into dottask, but the conversion may be imperfect (especially with regards to color, sizes, and other node attributes.)"]} 
         ]
        }
       {:id "delete-all" :title "Delete all" :contents ["Click the 'Delete all' button to delete everything from the graph. This change can still be undone."]} 
@@ -27,13 +28,14 @@
        }
       {:id "undo-button" :title "Undo/Redo" :contents ["Click the undo/redo buttons to undo/redo changes to the graph. This history is not included with saves."]}
       {:id "arrow-dir" :title "Change arrow direction" :contents ["Click this to open a menu to change the primary arrow direction. This also changes the direction you must drag from a node to add new nodes (e.g. if you change the direction to 'right', instead of dragging down to make a linked node below, drag right to make one after)"]}
-      {:id "export-dot" :title "Export Graphviz Code" :contents ["Clicking this opens up a .dot representation of the graph that can be further edited and rendered with the graphviz application or many online renderers. These .dot representations currently can not be imported back into dottask."]}
+      {:id "export-dot" :title "Export Graphviz Code" :contents ["Clicking this opens up a .dot representation of the graph that can be further edited and rendered with the graphviz application or many online renderers. This dot representation can be re-imported with the " (core/a-link "bulk-add-graphviz" "Bulk Add modal") ", but there may be small differences"]}
       {:id "help-button" :title "Help" :contents ["This button opens/closes the help sidebar. You can also drag from this button to any highlighted element to jump to that help section"]}
       ]}
     {:id "cards" :title "Cards" :contents [
       [:div {:style {:display "block" :position "relative"} :class "node-overlay"} [:div {:class "task-text"} "sample card"]]
       "Cards (or 'nodes') are the basic units of the graph" 
       {:id "delete-card" :title "Delete a card" :contents ["Hover over it then clicking the x button that appears in the upper right"]}
+      {:id "copy-card" :title "Copy a card" :contents ["Clicking the + button creates a copy of the card (same color, text, size, and links)"]}
       {:id "card-text" :title "Change card text" :contents ["Click on the light box inside the card" "When done editing, hit enter/escape or click on the area outside the textbox to save changes. You can also hit tab or shift-tab to switch to the next/previous card."]}
       {:id "card-color" :title "Change card color" :contents ["Hover over it and click a colored square in the right panel"]}
       {:id "card-resize" :title "Resize a card" :contents ["Drag the handle in the lower-right corner"]}
@@ -74,7 +76,7 @@
         "The following keys allow you to change the selected card (highlighted with a yellow border)"
         [:ul
            [:li [:b "d: "] "Delete card"]
-           [:li [:b "e: "] "Edit card text"]
+           [:li [:b "enter/e: "] "Edit card text"]
            [:li "Change card color:"
              [:ul
                (map (fn [color] [:li [:b (str (:shortcut color) ": ")] (:name color)]) core/colors)
@@ -83,6 +85,7 @@
          ]]} 
       {:id "shortcut-adding" :title "Adding items" :contents [
         [:ul
+           [:li [:b "c: "] (core/a-link "copy-card" "Copy") " a card"]
            [:li [:b "</>: "] "Add card before/after selected one (like " (core/a-link "drag-card" "dragging from a card") ")"]
            [:li [:b "-: "] "Link/unlink cards. The first time you hit it, it marks that node as the source. Then select the target node and hit it again to mark the target and create the link"]
          ]]} 

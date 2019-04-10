@@ -52,7 +52,7 @@ body {
 #graph0>polygon{
 	opacity: 0;
 }
-span.delete, span.collapse{
+span.delete, span.collapse, span.copy{
 	color: #888;
 	cursor: pointer;
 	width: 16px;
@@ -63,54 +63,73 @@ span.delete, span.collapse{
 }
 .node-overlay>span.delete{
 	position: absolute;
-	top: -1px;
+	top: 0px;
 	right: -1px;
 }
 div:hover>span.delete{
 	opacity: 1;
 }
+div:hover>span.copy{
+	opacity: 1;
+}
 div:hover>span.collapse{
 	opacity: 1;
 }
-.node-sidebar>span.delete{
+.node-topbar>span.delete{
 	opacity: 1;
 	position: absolute;
-	top: -2px;
-	right: -0px;
+	top: -1px;
+	right: 0px;
 } 
-
-.node-overlay .node-sidebar {
+.node-topbar>span.copy{
+	opacity: 1;
 	position: absolute;
 	top: -1px;
-	right: -18px;
-	width: 16px;
-	min-height: 86px;
-	height: 100%;
+	right: 11px;
+} 
+
+.node-overlay .node-bar {
+	position: absolute;
 	border: 0.5px solid #999;
-	background-color: #eee;
+	background-color: #f8f8f8;
 	opacity: 0;
 	transition: 0.4s ease-out;
 }
-.node-overlay:hover .node-sidebar {
+.node-overlay:hover .node-bar {
 	opacity: 1;
 	z-index: 20;
+	border-radius: 2px;
+}
+.node-overlay .node-topbar {
+	top: -17.5px;
+	left: -1px;
+	width: 27px;
+	width: 100%;
+	min-width: 106px;
+	height: 16px;
 }
 .node-overlay .color-picker {
 	position: absolute;
-	line-height: 10px;
-	top: 14px;
-	left: 3px;
+	line-height: 11px;
+	width: 77px;
+	top: 3px;
+	left: 4px;
 	opacity: 0.7;
 }
 .node-overlay .color-swatch {
 	opacity: 0;
-	width: 8px;
-	height: 8px;
+	width: 10px;
+	height: 10px;
+	margin-right: 1px;
 	display: inline-block;
-	border: 0.5px solid #999;
+	border: 0px solid #999;
+	border-radius: 2px;
 	cursor: pointer;
 }
 .node-overlay:hover .color-swatch {
+	opacity: 0.8;
+}
+.node-overlay:hover .color-swatch:hover {
 	opacity: 1;
 }
 
@@ -147,7 +166,7 @@ div:hover>span.collapse{
 	z-index: 999;
 }
 .node-overlay.selected {
-	box-shadow: 0 0 1px 2.5px #FF4;
+	box-shadow: 0 0 2px 2.5px #66F;
 }
 .node-overlay.boxed {
 	box-shadow: 0 0 1px 3.5px #59d45d;
@@ -160,6 +179,12 @@ div:hover>span.collapse{
 	border-radius: 20px;
 	box-shadow: inset 0 0 10px 1px #666;
 }
+.node-overlay.cluster-node.selected {
+	box-shadow: inset 0 0 10px 1px #666, 0 0 2px 2.5px #66F;
+}
+.node-overlay.cluster-node.boxed {
+	box-shadow: inset 0 0 10px 1px #666, 0 0 1px 3.5px #59d45d !important;
+}
 .node-overlay.cluster-node .task-text {
 	border-radius: 10px;
 	margin-top: 14px;
@@ -168,7 +193,7 @@ div:hover>span.collapse{
 	height: calc(100% - 38px);
 }
 .cluster-overlay {
-	transition: 0.5s ease-in;
+	transition: 0.5s ease-in, box-shadow 0.1s ease-out;
 	user-select: none;
 	font-family: sans-serif;
 	font-size: 11pt;
@@ -180,14 +205,25 @@ div:hover>span.collapse{
         padding-top: 1px;
         text-align: center;
 }
+.cluster-overlay.selected {
+	box-shadow: 0 0 2px 3.5px #66F;
+}
+.cluster-overlay.boxed {
+	box-shadow: 0 0 1px 3.5px #59d45d;
+}
 .cluster-overlay span.delete {
 	position: absolute;
 	right: 0px;
 	top: 0px;
 }
-.cluster-overlay span.collapse {
+.cluster-overlay span.copy {
 	position: absolute;
 	right: 12px;
+	top: 0px;
+}
+.cluster-overlay span.collapse {
+	position: absolute;
+	right: 24px;
 	top: 0px;
 }
 .node polygon {
@@ -354,4 +390,7 @@ span.button:hover svg, .direction-button:hover svg {
 	stroke-linejoin: round;
 	stroke-width: 2.5;
 	stroke: #999;
+}
+.cluster>text {
+	display: none;
 }
